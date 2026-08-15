@@ -1,0 +1,455 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/validators.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/confirmation_dialog.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/theme_provider.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _picker = ImagePicker();
+  final _profileFormKey = GlobalKey<FormState>();
+  bool _isEditing = false;
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  File? _pickedImageFile;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().currentUser;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked != null) {
+      setState(() {
+        _pickedImageFile = File(picked.path);
+      });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_profileFormKey.currentState?.validate() == false) return;
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.updateProfile(
+      name: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      newProfileImageFile: _pickedImageFile,
+    );
+
+    if (success && mounted) {
+      setState(() {
+        _isEditing = false;
+        _pickedImageFile = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
+    }
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentPassController = TextEditingController();
+    final newPassController = TextEditingController();
+    final confirmPassController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
+        title: Text(
+          'Change Password',
+          style: AppTypography.manrope(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(
+                label: 'Current Password',
+                controller: currentPassController,
+                isPassword: true,
+                validator: Validators.password,
+              ),
+              const SizedBox(height: 12),
+              AppTextField(
+                label: 'New Password',
+                controller: newPassController,
+                isPassword: true,
+                validator: Validators.password,
+              ),
+              const SizedBox(height: 12),
+              AppTextField(
+                label: 'Confirm New Password',
+                controller: confirmPassController,
+                isPassword: true,
+                validator: (val) => Validators.confirmPassword(val, newPassController.text),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final authProvider = context.read<AuthProvider>();
+              final success = await authProvider.changePassword(
+                currentPassController.text,
+                newPassController.text,
+              );
+              if (success && ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Password changed successfully!')),
+                );
+              }
+            },
+            child: const Text('Update Password'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final authProvider = context.watch<AuthProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
+    final user = authProvider.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'My Profile & Settings',
+          style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Profile',
+              onPressed: () => setState(() => _isEditing = true),
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // User Avatar & Role Badge Header
+            Center(
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                    backgroundImage: _pickedImageFile != null
+                        ? FileImage(_pickedImageFile!) as ImageProvider
+                        : (user?.profileImage != null && user!.profileImage!.isNotEmpty
+                            ? NetworkImage(user.profileImage!)
+                            : null),
+                    child: (_pickedImageFile == null && (user?.profileImage == null || user!.profileImage!.isEmpty))
+                        ? Text(
+                            (user?.name ?? 'U')[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.white),
+                          )
+                        : null,
+                  ),
+                  if (_isEditing)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.camera_alt_rounded,
+                            size: 20,
+                            color: isDark ? AppColors.darkOnAccent : AppColors.lightOnAccent,
+                          ),
+                          onPressed: _pickImage,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            Text(
+              user?.name ?? 'Attendee',
+              style: AppTypography.manrope(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: primaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              user?.email ?? '',
+              style: AppTypography.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: secondaryTextColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Role Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: user?.role == AppConstants.roleAdmin
+                    ? (isDark ? AppColors.darkAdminAccent.withValues(alpha: 0.2) : Colors.black)
+                    : user?.role == AppConstants.roleOrganizer
+                        ? (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent)
+                        : (isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                (user?.role ?? 'attendee').toUpperCase(),
+                style: AppTypography.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: user?.role == AppConstants.roleAttendee
+                      ? (isDark ? AppColors.darkOnAccent : AppColors.lightOnAccent)
+                      : Colors.white,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Profile Edit Form or Details Card
+            AppCard(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Personal Information',
+                    style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 14),
+                  if (_isEditing) ...[
+                    Form(
+                      key: _profileFormKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppTextField(
+                            label: 'Full Name',
+                            controller: _nameController,
+                            validator: (v) => Validators.required(v, 'Name'),
+                          ),
+                          const SizedBox(height: 12),
+                          AppTextField(
+                            label: 'Phone Number',
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            validator: Validators.phone,
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppButton(
+                                  text: 'Cancel',
+                                  variant: AppButtonVariant.outlined,
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditing = false;
+                                      _nameController.text = user?.name ?? '';
+                                      _phoneController.text = user?.phone ?? '';
+                                      _pickedImageFile = null;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: AppButton(
+                                  text: 'Save Changes',
+                                  onPressed: _saveProfile,
+                                  isLoading: authProvider.isLoading,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.person_outline_rounded),
+                      title: const Text('Name'),
+                      subtitle: Text(user?.name ?? 'Not set'),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.email_outlined),
+                      title: const Text('Email'),
+                      subtitle: Text(user?.email ?? 'Not set'),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.phone_outlined),
+                      title: const Text('Phone'),
+                      subtitle: Text(user?.phone?.isNotEmpty == true ? user!.phone! : 'Not provided'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Role Switcher shortcut (if user has organizer or admin privileges)
+            if (user?.role == AppConstants.roleOrganizer || user?.role == AppConstants.roleAdmin) ...[
+              AppCard(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Switch Workspace',
+                      style: AppTypography.manrope(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
+                    if (user?.role == AppConstants.roleOrganizer)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.dashboard_customize_rounded, color: AppColors.lightOrganizerAccent),
+                        title: const Text('Organizer Dashboard'),
+                        subtitle: const Text('Manage your events, scan attendance, and view metrics'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.go('/organizer'),
+                      ),
+                    if (user?.role == AppConstants.roleAdmin)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.lightError),
+                        title: const Text('Admin Console'),
+                        subtitle: const Text('System approvals, users, events, and reports'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.go('/admin'),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // App Settings Card (Security, Theme, About Us, Contact Us)
+            AppCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.lock_outline_rounded),
+                    title: const Text('Change Password'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showChangePasswordDialog(context),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined),
+                    title: const Text('Appearance / Theme'),
+                    subtitle: Text(themeProvider.themeMode == ThemeMode.system ? 'System Default' : (isDark ? 'Dark Mode' : 'Light Mode')),
+                    trailing: Switch(
+                      value: themeProvider.isDarkMode,
+                      onChanged: (_) => themeProvider.toggleTheme(),
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.info_outline_rounded),
+                    title: const Text('About EventEase'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/about-us'),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.mail_outline_rounded),
+                    title: const Text('Contact Support'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/contact-us'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Log Out Button
+            AppButton(
+              text: 'Log Out',
+              variant: AppButtonVariant.outlined,
+              icon: Icons.logout_rounded,
+              onPressed: () async {
+                final confirm = await ConfirmationDialog.show(
+                  context,
+                  title: 'Sign Out?',
+                  message: 'Are you sure you want to sign out of EventEase?',
+                  confirmLabel: 'Sign Out',
+                  isDestructive: true,
+                );
+                if (confirm && context.mounted) {
+                  await authProvider.logout();
+                  if (context.mounted) {
+                    context.go('/login');
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,34 @@
+sequenceDiagram
+    %% Atomic 7-Step Registration Transaction Sequence Diagram
+    autonumber
+    actor Attendee as Attendee
+    participant UI as EventDetailsScreen
+    participant RegProvider as RegistrationProvider
+    participant RegRepo as RegistrationRepository
+    participant Firestore as Cloud Firestore Transaction
+
+    Attendee->>UI: Tap "Register Now"
+    UI->>RegProvider: registerForEvent(eventId, userId, ...)
+    RegProvider->>RegRepo: registerForEvent(...)
+    
+    activate RegRepo
+    RegRepo->>Firestore: runTransaction(transaction)
+    activate Firestore
+    
+    Note over Firestore: Step 1: Read Event document snapshot
+    Firestore->>Firestore: Step 2: Validate event.status == 'approved'
+    Firestore->>Firestore: Step 3: Check registeredCount < maxParticipants (Capacity Guard)
+    Firestore->>Firestore: Step 4: Check existing registrations (Duplicate Spot Guard)
+    Firestore->>Firestore: Step 5: Generate unique UUID QR payload "EE:eventId:regId:token"
+    Firestore->>Firestore: Step 6: Create RegistrationModel document in /registrations
+    Firestore->>Firestore: Step 7: Atomically increment event.registeredCount by +1
+    
+    Firestore-->>RegRepo: Commit Atomic Transaction Success
+    deactivate Firestore
+    
+    RegRepo->>RegRepo: Trigger in-app confirmation notification
+    RegRepo-->>RegProvider: Return new RegistrationModel
+    deactivate RegRepo
+    
+    RegProvider-->>UI: Spot Confirmed State
+    UI->>Attendee: Display Confirmed Dialog & Navigate to QRPassScreen

@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isUserActive() {
+      return isAuthenticated() && (
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        getUserData().status != 'deactivated'
+      );
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && isUserActive() && (
+        getUserRole() == 'admin' ||
+        request.auth.token.email == 'admin@eventease.com'
+      );
+    }
+
+    function isOrganizer() {
+      return isAuthenticated() && isUserActive() && (
+        getUserRole() == 'organizer' ||
+        isAdmin()
+      );
+    }
+
+    function isEventOrganizer(eventId) {
+      return isOrganizer() && (
+        isAdmin() ||
+        get(/databases/$(database)/documents/events/$(eventId)).data.organizerId == request.auth.uid
+      );
+    }
+
+    // --- 1. Users Collection ---
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Trap 1: Role escalation guard - non-admins can only register with attendee or organizer_pending
+      allow create: if isAuthenticated() && request.auth.uid == userId && (
+        !('role' in request.resource.data) ||
+        request.resource.data.role in ['attendee', 'organizer_pending']
+      );
+      // Trap 1 & 7: Only admin can change role or activate/deactivate accounts; users cannot elevate own role
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isOwner(userId) && isUserActive() &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.status == resource.data.status)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- 2. Events Collection ---
+    match /events/{eventId} {
+      // Trap 6: Logged-out users can only read approved or completed events
+      allow read: if resource.data.status in ['approved', 'completed'] ||
+                     (isAuthenticated() && (resource.data.organizerId == request.auth.uid || isAdmin()));
+      // Trap 2: Organizers must submit as pending_approval; only admins can create directly approved events
+      allow create: if isAuthenticated() && isUserActive() && (
+        isAdmin() ||
+        (isOrganizer() && request.resource.data.status == 'pending_approval' && request.resource.data.organizerId == request.auth.uid)
+      );
+      // Trap 2: Organizers cannot change status to approved/rejected directly
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isOrganizer() && resource.data.organizerId == request.auth.uid && request.resource.data.status == resource.data.status) ||
+        // Allow atomic seat increment during registration transaction
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- 3. Registrations Collection ---
+    match /registrations/{regId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        isOrganizer()
+      );
+      // Trap 3: Must match authenticated UID
+      allow create: if isAuthenticated() && isUserActive() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        isOrganizer()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- 4. Attendance Collection ---
+    match /attendance/{attId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin() ||
+        isOrganizer()
+      );
+      // Trap 4: Only the specific event's organizer or admin can write attendance records
+      allow create, update: if isAuthenticated() && isUserActive() && (
+        isAdmin() ||
+        isEventOrganizer(request.resource.data.eventId)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- 5. Favorites Collection ---
+    match /favorites/{favId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isUserActive() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // --- 6. Notifications Collection ---
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all');
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // --- 7. Feedback Collection ---
+    match /feedback/{feedbackId} {
+      allow read: if true;
+      // Trap 5: User must write feedback under own UID
+      allow create: if isAuthenticated() && isUserActive() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- 8. Gallery Collection ---
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isUserActive() && (
+        isAdmin() ||
+        isEventOrganizer(request.resource.data.eventId)
+      );
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isOrganizer() && resource.data.uploadedBy == request.auth.uid);
+    }
+
+    // --- 9. Contact Messages Collection ---
+    match /contact_messages/{msgId} {
+      allow create: if true;
+      allow read: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

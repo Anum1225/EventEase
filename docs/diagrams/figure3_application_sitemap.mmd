@@ -1,0 +1,46 @@
+graph TD
+    %% EventEase Application Sitemap (Figure 3 in SRS)
+    Splash["Splash / Login (/splash)"] --> Home["Home Dashboard (/attendee)"]
+
+    Home --> Discover["Discover Events"]
+    Home --> MyEvents["My Events"]
+    Home --> Favorites["Favorites"]
+    Home --> Notifications["Notifications"]
+
+    Discover --> EventDetails["Event Details (/attendee/event/:id)"]
+    MyEvents --> QRPass["QR Pass (/attendee/qr-pass/:id)"]
+    Favorites --> Feedback["Feedback (/attendee/feedback/:id)"]
+    Notifications --> Profile["Profile (/attendee/profile)"]
+
+    QRPass --> Organizer["Organizer Hub (/organizer)"]
+    Feedback --> Admin["Admin Console (/admin)"]
+
+    subgraph Attendee_Flow ["Attendee Core Flow"]
+        Discover
+        EventDetails
+        MyEvents
+        QRPass
+        Favorites
+        Feedback
+        Notifications
+        Profile
+    end
+
+    subgraph Organizer_Flow ["Organizer Hub Flow"]
+        Organizer --> OrgDash["Organizer Dashboard"]
+        Organizer --> CreateEv["Create / Edit Event"]
+        Organizer --> Scanner["QR Attendance Scanner"]
+        Organizer --> Roster["Participant Roster"]
+        Organizer --> Announce["Announcements"]
+        Organizer --> OrgGallery["Gallery Upload"]
+        Organizer --> OrgFeedback["Feedback Overview"]
+    end
+
+    subgraph Admin_Flow ["Admin Console Flow"]
+        Admin --> AdminDash["Admin Command Center"]
+        Admin --> Approvals["Event Approvals Queue"]
+        Admin --> UserMgmt["User & Role Management"]
+        Admin --> EventMgmt["Event Directory & Auditing"]
+        Admin --> Moderation["Gallery Moderation"]
+        Admin --> Reports["Institutional Reports & KPIs"]
+    end
