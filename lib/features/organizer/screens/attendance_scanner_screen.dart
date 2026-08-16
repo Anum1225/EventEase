@@ -19,49 +19,21 @@ class AttendanceScannerScreen extends StatefulWidget {
   State<AttendanceScannerScreen> createState() => _AttendanceScannerScreenState();
 }
 
-class _AttendanceScannerScreenState extends State<AttendanceScannerScreen>
-    with WidgetsBindingObserver {
+class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
   String? _selectedEventId;
   bool _isProcessing = false;
-  // Controller created lazily and managed carefully
-  MobileScannerController? _controller;
+  bool _scannerActive = true;
 
   @override
   void initState() {
     super.initState();
     _selectedEventId = widget.initialEventId;
-    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
         context.read<EventProvider>().loadOrganizerEvents(user.id);
       }
-      _initCamera();
     });
-  }
-
-  void _initCamera() {
-    _controller?.dispose();
-    _controller = MobileScannerController(
-      autoStart: true,
-    );
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When the user comes back from Settings after granting permission,
-    // reinitialize the camera
-    if (state == AppLifecycleState.resumed) {
-      _initCamera();
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
-    super.dispose();
   }
 
   String? _getEffectiveEventId(List organizerEvents) {
@@ -294,6 +266,13 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen>
                   context.read<AttendanceProvider>().clearLastScanResult();
                   setState(() {
                     _isProcessing = false;
+                    // Force rebuild the scanner widget
+                    _scannerActive = false;
+                  });
+                  Future.microtask(() {
+                    if (mounted) {
+                      setState(() => _scannerActive = true);
+                    }
                   });
                 },
                 icon: Icons.qr_code_scanner_rounded,
@@ -324,22 +303,6 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen>
             tooltip: 'Manual Code Entry',
             onPressed: _showManualEntryDialog,
           ),
-          if (_controller != null) ...[
-            IconButton(
-              icon: const Icon(Icons.flash_off_rounded),
-              tooltip: 'Toggle Flashlight',
-              onPressed: () {
-                try { _controller?.toggleTorch(); } catch (_) {}
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.flip_camera_ios_rounded),
-              tooltip: 'Switch Camera',
-              onPressed: () {
-                try { _controller?.switchCamera(); } catch (_) {}
-              },
-            ),
-          ],
           const SizedBox(width: 6),
         ],
       ),
@@ -382,107 +345,106 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen>
             ),
           ),
 
-          // Camera Viewport & Fallback View
+          // Camera Viewport
           Expanded(
-            child: _controller == null
-                ? const Center(child: CircularProgressIndicator())
-                : Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      MobileScanner(
-                        key: ValueKey(_controller.hashCode),
-                        controller: _controller!,
-                        onDetect: _onDetect,
-                        errorBuilder: (context, error, child) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.no_photography_rounded,
-                                    size: 48,
-                                    color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    'Camera Not Available',
-                                    style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Error: ${error.errorDetails?.message ?? error.errorCode.name}\n\nPlease check camera permission in Settings, then reopen this screen.',
-                                    textAlign: TextAlign.center,
-                                    style: AppTypography.manrope(
-                                      fontSize: 13,
-                                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  OutlinedButton.icon(
-                                    icon: const Icon(Icons.dialpad_rounded, size: 18),
-                                    label: const Text('Enter Pass Code Manually'),
-                                    onPressed: _showManualEntryDialog,
-                                  ),
-                                ],
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // NO controller passed — widget manages its own camera lifecycle
+                // This is the most reliable pattern for mobile_scanner on Android
+                if (_scannerActive)
+                  MobileScanner(
+                    onDetect: _onDetect,
+                    errorBuilder: (context, error, child) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.no_photography_rounded,
+                                size: 48,
+                                color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
                               ),
-                            ),
-                          );
-                        },
-                      ),
-
-                      // Viewfinder Target Overlay
-                      Container(
-                        width: 250,
-                        height: 250,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                            width: 2.5,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-
-                      Positioned(
-                        bottom: 30,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.75),
-                                borderRadius: BorderRadius.circular(100),
+                              const SizedBox(height: 14),
+                              Text(
+                                'Camera Not Available',
+                                style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
                               ),
-                              child: Text(
-                                'Align QR code inside target box',
+                              const SizedBox(height: 6),
+                              Text(
+                                'Error: ${error.errorDetails?.message ?? error.errorCode.name}\n\nPlease grant camera permission in Settings, then reopen this screen.',
+                                textAlign: TextAlign.center,
                                 style: AppTypography.manrope(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.dialpad_rounded, size: 16),
-                              label: const Text('Manual Entry', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? AppColors.darkSurfaceElevated : Colors.white,
-                                foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                elevation: 3,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              const SizedBox(height: 20),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.dialpad_rounded, size: 18),
+                                label: const Text('Enter Pass Code Manually'),
+                                onPressed: _showManualEntryDialog,
                               ),
-                              onPressed: _showManualEntryDialog,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                      );
+                    },
+                  ),
+
+                // Viewfinder Target Overlay
+                Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                      width: 2.5,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+
+                Positioned(
+                  bottom: 30,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          'Align QR code inside target box',
+                          style: AppTypography.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.dialpad_rounded, size: 16),
+                        label: const Text('Manual Entry', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppColors.darkSurfaceElevated : Colors.white,
+                          foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                          elevation: 3,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        onPressed: _showManualEntryDialog,
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
