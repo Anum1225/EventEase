@@ -1,10 +1,8 @@
-name: Build Android APK and iOS App
+name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -47,36 +45,3 @@ jobs:
             build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
             build/app/outputs/flutter-apk/app-x86_64-release.apk
           retention-days: 30
-
-  build-ios:
-    name: Build iOS Bundle
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build iOS (No Codesign)
-        run: flutter build ios --release --no-codesign
-
-      - name: Compress iOS App Runner Bundle
-        run: |
-          cd build/ios/iphoneos
-          zip -r Runner.app.zip Runner.app
-
-      - name: Upload iOS App Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: eventease-ios-runner-app
-          path: build/ios/iphoneos/Runner.app.zip
-          retention-days: 30
-
