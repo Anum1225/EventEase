@@ -360,123 +360,35 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                     const SizedBox(height: 16),
 
                     // Date & Times
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 480;
+                        if (isNarrow) {
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Date *',
-                                style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 6),
-                              InkWell(
-                                onTap: () async {
-                                  final now = DateTime.now();
-                                  final todayMidnight = DateTime(now.year, now.month, now.day);
-                                  final firstSafeDate = _selectedDate.isBefore(todayMidnight)
-                                      ? DateTime(_selectedDate.year - 1, 1, 1)
-                                      : todayMidnight;
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _selectedDate,
-                                    firstDate: firstSafeDate,
-                                    lastDate: now.add(const Duration(days: 730)),
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _selectedDate = picked);
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(DateFormatter.formatShortDate(_selectedDate), style: const TextStyle(fontSize: 13)),
-                                      const Icon(Icons.calendar_today_rounded, size: 16),
-                                    ],
-                                  ),
-                                ),
+                              _buildDateField(context, isDark),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(child: _buildStartTimeField(context, isDark)),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildEndTimeField(context, isDark)),
+                                ],
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Start *',
-                                style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 6),
-                              InkWell(
-                                onTap: () async {
-                                  final picked = await showTimePicker(context: context, initialTime: _startTime);
-                                  if (picked != null) {
-                                    setState(() => _startTime = picked);
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(_startTime.format(context), style: const TextStyle(fontSize: 12)),
-                                      const Icon(Icons.access_time_rounded, size: 14),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'End *',
-                                style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 6),
-                              InkWell(
-                                onTap: () async {
-                                  final picked = await showTimePicker(context: context, initialTime: _endTime);
-                                  if (picked != null) {
-                                    setState(() => _endTime = picked);
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(_endTime.format(context), style: const TextStyle(fontSize: 12)),
-                                      const Icon(Icons.access_time_rounded, size: 14),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(flex: 4, child: _buildDateField(context, isDark)),
+                            const SizedBox(width: 10),
+                            Expanded(flex: 3, child: _buildStartTimeField(context, isDark)),
+                            const SizedBox(width: 10),
+                            Expanded(flex: 3, child: _buildEndTimeField(context, isDark)),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -531,6 +443,211 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDateField(BuildContext context, bool isDark) {
+    final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Date *',
+          style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final now = DateTime.now();
+            final todayMidnight = DateTime(now.year, now.month, now.day);
+            final firstSafeDate = _selectedDate.isBefore(todayMidnight)
+                ? DateTime(_selectedDate.year - 1, 1, 1)
+                : todayMidnight;
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _selectedDate,
+              firstDate: firstSafeDate,
+              lastDate: now.add(const Duration(days: 730)),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: isDark
+                        ? ColorScheme.dark(
+                            primary: AppColors.darkOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: AppColors.darkSurfaceElevated,
+                            onSurface: AppColors.darkTextPrimary,
+                          )
+                        : ColorScheme.light(
+                            primary: AppColors.lightOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: AppColors.lightTextPrimary,
+                          ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              setState(() => _selectedDate = picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    DateFormatter.formatShortDate(_selectedDate),
+                    style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.calendar_today_rounded, size: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStartTimeField(BuildContext context, bool isDark) {
+    final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Start Time *',
+          style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: _startTime,
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: isDark
+                        ? ColorScheme.dark(
+                            primary: AppColors.darkOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: AppColors.darkSurfaceElevated,
+                            onSurface: AppColors.darkTextPrimary,
+                          )
+                        : ColorScheme.light(
+                            primary: AppColors.lightOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: AppColors.lightTextPrimary,
+                          ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              setState(() => _startTime = picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    _startTime.format(context),
+                    style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.access_time_rounded, size: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEndTimeField(BuildContext context, bool isDark) {
+    final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'End Time *',
+          style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: _endTime,
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: isDark
+                        ? ColorScheme.dark(
+                            primary: AppColors.darkOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: AppColors.darkSurfaceElevated,
+                            onSurface: AppColors.darkTextPrimary,
+                          )
+                        : ColorScheme.light(
+                            primary: AppColors.lightOrganizerAccent,
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: AppColors.lightTextPrimary,
+                          ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              setState(() => _endTime = picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    _endTime.format(context),
+                    style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.access_time_rounded, size: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

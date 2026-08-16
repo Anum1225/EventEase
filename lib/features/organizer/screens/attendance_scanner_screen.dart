@@ -20,9 +20,14 @@ class AttendanceScannerScreen extends StatefulWidget {
 }
 
 class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
-  final MobileScannerController _scannerController = MobileScannerController();
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    facing: CameraFacing.back,
+    torchEnabled: false,
+  );
   String? _selectedEventId;
   bool _isTorchOn = false;
+  bool _isHandlingScan = false;
 
   @override
   void initState() {
@@ -59,10 +64,6 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
 
     if (attendanceProvider.isProcessingScan) return;
 
-    try {
-      await _scannerController.stop();
-    } catch (_) {}
-
     final result = await attendanceProvider.processScannedQr(
       qrPayload: rawValue.trim(),
       currentEventId: targetEventId,
@@ -71,10 +72,14 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
 
     if (mounted) {
       _showResultBottomSheet(result);
+    } else {
+      _isHandlingScan = false;
     }
   }
 
   void _onDetect(BarcodeCapture capture) async {
+    if (_isHandlingScan) return;
+
     final barcodes = capture.barcodes;
     if (barcodes.isEmpty) return;
 
@@ -92,6 +97,7 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       return;
     }
 
+    _isHandlingScan = true;
     _processCode(rawValue, targetId);
   }
 
@@ -269,9 +275,9 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   context.read<AttendanceProvider>().clearLastScanResult();
-                  try {
-                    _scannerController.start();
-                  } catch (_) {}
+                  setState(() {
+                    _isHandlingScan = false;
+                  });
                 },
                 icon: Icons.qr_code_scanner_rounded,
               ),
