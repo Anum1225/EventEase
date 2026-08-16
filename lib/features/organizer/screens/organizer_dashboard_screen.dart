@@ -231,38 +231,84 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               const SizedBox(height: 12),
 
               // KPI Metrics Grid with Animated Counters
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Live Events',
-                      approvedEventsCount,
-                      Icons.event_available_rounded,
-                      isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
-                      isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Registrations',
-                      totalRegistrations,
-                      Icons.group_rounded,
-                      isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
-                      isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Pending Review',
-                      pendingCount,
-                      Icons.pending_actions_rounded,
-                      isDark ? AppColors.darkWarning : AppColors.lightWarning,
-                      isDark,
-                    ),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth < 450;
+                  if (isMobile) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 130,
+                            child: _buildMetricCard(
+                              'Live Events',
+                              approvedEventsCount,
+                              Icons.event_available_rounded,
+                              isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                              isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 130,
+                            child: _buildMetricCard(
+                              'Registrations',
+                              totalRegistrations,
+                              Icons.group_rounded,
+                              isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                              isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 130,
+                            child: _buildMetricCard(
+                              'Pending Review',
+                              pendingCount,
+                              Icons.pending_actions_rounded,
+                              isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                              isDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricCard(
+                          'Live Events',
+                          approvedEventsCount,
+                          Icons.event_available_rounded,
+                          isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                          isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMetricCard(
+                          'Registrations',
+                          totalRegistrations,
+                          Icons.group_rounded,
+                          isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                          isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMetricCard(
+                          'Pending Review',
+                          pendingCount,
+                          Icons.pending_actions_rounded,
+                          isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                          isDark,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 20),
 
