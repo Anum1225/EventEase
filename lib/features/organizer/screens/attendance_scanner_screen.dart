@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
@@ -20,20 +21,36 @@ class AttendanceScannerScreen extends StatefulWidget {
 }
 
 class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
+  late final MobileScannerController _scannerController;
+  final ImagePicker _picker = ImagePicker();
+
   String? _selectedEventId;
   bool _isProcessing = false;
-  bool _scannerActive = true;
+  bool _isTorchOn = false;
 
   @override
   void initState() {
     super.initState();
     _selectedEventId = widget.initialEventId;
+    _scannerController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+      returnImage: false,
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
         context.read<EventProvider>().loadOrganizerEvents(user.id);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    super.dispose();
   }
 
   String? _getEffectiveEventId(List organizerEvents) {
@@ -90,6 +107,46 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     _processCode(rawValue, targetId);
   }
 
+  Future<void> _pickImageAndScan() async {
+    final eventProvider = context.read<EventProvider>();
+    final organizerEvents = eventProvider.organizerEvents.where((e) => !e.isCancelled).toList();
+    final targetId = _getEffectiveEventId(organizerEvents);
+
+    if (targetId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an active event first.')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      final BarcodeCapture? barcodes = await _scannerController.analyzeImage(image.path);
+      if (barcodes != null && barcodes.barcodes.isNotEmpty) {
+        final rawValue = barcodes.barcodes.first.rawValue;
+        if (rawValue != null && rawValue.isNotEmpty) {
+          setState(() => _isProcessing = true);
+          _processCode(rawValue, targetId);
+          return;
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No QR code found in selected image.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to read image: $e')),
+        );
+      }
+    }
+  }
+
   void _showManualEntryDialog() {
     final codeController = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -123,7 +180,7 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Enter the attendee registration ID or raw QR code token:',
+                'Enter attendee registration ID or raw QR code token:',
                 style: AppTypography.manrope(fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 14),
@@ -266,13 +323,6 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                   context.read<AttendanceProvider>().clearLastScanResult();
                   setState(() {
                     _isProcessing = false;
-                    // Force rebuild the scanner widget
-                    _scannerActive = false;
-                  });
-                  Future.microtask(() {
-                    if (mounted) {
-                      setState(() => _scannerActive = true);
-                    }
                   });
                 },
                 icon: Icons.qr_code_scanner_rounded,
@@ -299,9 +349,35 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.photo_library_outlined),
+            tooltip: 'Scan QR from Photo',
+            onPressed: _pickImageAndScan,
+          ),
+          IconButton(
             icon: const Icon(Icons.dialpad_rounded),
             tooltip: 'Manual Code Entry',
             onPressed: _showManualEntryDialog,
+          ),
+          IconButton(
+            icon: Icon(_isTorchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded),
+            tooltip: 'Toggle Flashlight',
+            onPressed: () async {
+              try {
+                await _scannerController.toggleTorch();
+                setState(() {
+                  _isTorchOn = !_isTorchOn;
+                });
+              } catch (_) {}
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.flip_camera_ios_rounded),
+            tooltip: 'Switch Camera',
+            onPressed: () async {
+              try {
+                await _scannerController.switchCamera();
+              } catch (_) {}
+            },
           ),
           const SizedBox(width: 6),
         ],
@@ -350,49 +426,62 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // NO controller passed — widget manages its own camera lifecycle
-                // This is the most reliable pattern for mobile_scanner on Android
-                if (_scannerActive)
-                  MobileScanner(
-                    onDetect: _onDetect,
-                    errorBuilder: (context, error, child) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.no_photography_rounded,
-                                size: 48,
-                                color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                MobileScanner(
+                  controller: _scannerController,
+                  onDetect: _onDetect,
+                  errorBuilder: (context, error, child) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.no_photography_rounded,
+                              size: 48,
+                              color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Camera Preview Unavailable',
+                              style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Ensure camera permissions are enabled, or select a pass screenshot from gallery.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.manrope(
+                                fontSize: 13,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                               ),
-                              const SizedBox(height: 14),
-                              Text(
-                                'Camera Not Available',
-                                style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Error: ${error.errorDetails?.message ?? error.errorCode.name}\n\nPlease grant camera permission in Settings, then reopen this screen.',
-                                textAlign: TextAlign.center,
-                                style: AppTypography.manrope(
-                                  fontSize: 13,
-                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.photo_library_outlined, size: 18),
+                                  label: const Text('Pick Image'),
+                                  onPressed: _pickImageAndScan,
                                 ),
-                              ),
-                              const SizedBox(height: 20),
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.dialpad_rounded, size: 18),
-                                label: const Text('Enter Pass Code Manually'),
-                                onPressed: _showManualEntryDialog,
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.dialpad_rounded, size: 18),
+                                  label: const Text('Manual Entry'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: _showManualEntryDialog,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                ),
 
                 // Viewfinder Target Overlay
                 Container(
@@ -428,17 +517,35 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.dialpad_rounded, size: 16),
-                        label: const Text('Manual Entry', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? AppColors.darkSurfaceElevated : Colors.white,
-                          foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                          elevation: 3,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                        onPressed: _showManualEntryDialog,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.photo_library_outlined, size: 16),
+                            label: const Text('Gallery QR', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? AppColors.darkSurfaceElevated : Colors.white,
+                              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              elevation: 3,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                            onPressed: _pickImageAndScan,
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.dialpad_rounded, size: 16),
+                            label: const Text('Manual Entry', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? AppColors.darkSurfaceElevated : Colors.white,
+                              foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              elevation: 3,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                            onPressed: _showManualEntryDialog,
+                          ),
+                        ],
                       ),
                     ],
                   ),
