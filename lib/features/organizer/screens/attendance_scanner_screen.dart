@@ -38,6 +38,9 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       if (user != null) {
         context.read<EventProvider>().loadOrganizerEvents(user.id);
       }
+      try {
+        _scannerController.start();
+      } catch (_) {}
     });
   }
 
@@ -303,6 +306,16 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Start / Refresh Camera',
+            onPressed: () async {
+              try {
+                await _scannerController.start();
+              } catch (_) {}
+              if (mounted) setState(() {});
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.dialpad_rounded),
             tooltip: 'Manual Code Entry',
             onPressed: _showManualEntryDialog,
@@ -379,6 +392,7 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                   controller: _scannerController,
                   onDetect: _onDetect,
                   errorBuilder: (context, error, child) {
+                    final isPermissionDenied = error.errorCode == MobileScannerErrorCode.permissionDenied;
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
@@ -386,18 +400,20 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.no_photography_rounded,
+                              isPermissionDenied ? Icons.camera_enhance_rounded : Icons.no_photography_rounded,
                               size: 48,
                               color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Camera Preview Unavailable',
+                              isPermissionDenied ? 'Camera Permission Required' : 'Camera Preview Unavailable',
                               style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Use manual check-in entry to verify attendance pass codes.',
+                              isPermissionDenied
+                                  ? 'Please allow camera permission to scan attendee QR ticket passes.'
+                                  : 'Tap below to start camera or use manual check-in entry.',
                               textAlign: TextAlign.center,
                               style: AppTypography.manrope(
                                 fontSize: 13,
@@ -405,10 +421,31 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.dialpad_rounded, size: 18),
-                              label: const Text('Enter Pass Code Manually'),
-                              onPressed: _showManualEntryDialog,
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                                  label: const Text('Start / Retry Camera'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      await _scannerController.start();
+                                    } catch (_) {}
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.dialpad_rounded, size: 18),
+                                  label: const Text('Manual Entry'),
+                                  onPressed: _showManualEntryDialog,
+                                ),
+                              ],
                             ),
                           ],
                         ),
