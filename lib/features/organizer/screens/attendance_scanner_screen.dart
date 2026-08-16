@@ -20,14 +20,11 @@ class AttendanceScannerScreen extends StatefulWidget {
 }
 
 class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
-  final MobileScannerController _scannerController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
+  // Use the simplest constructor - MobileScanner widget auto-starts it
+  final MobileScannerController _scannerController = MobileScannerController();
   String? _selectedEventId;
   bool _isTorchOn = false;
-  bool _isHandlingScan = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -38,10 +35,8 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       if (user != null) {
         context.read<EventProvider>().loadOrganizerEvents(user.id);
       }
-      try {
-        _scannerController.start();
-      } catch (_) {}
     });
+    // Do NOT call _scannerController.start() here - MobileScanner widget handles it
   }
 
   @override
@@ -76,12 +71,13 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     if (mounted) {
       _showResultBottomSheet(result);
     } else {
-      _isHandlingScan = false;
+      _isProcessing = false;
     }
   }
 
-  void _onDetect(BarcodeCapture capture) async {
-    if (_isHandlingScan) return;
+  void _onDetect(BarcodeCapture capture) {
+    // Guard: skip if already processing a scan
+    if (_isProcessing) return;
 
     final barcodes = capture.barcodes;
     if (barcodes.isEmpty) return;
@@ -100,7 +96,8 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       return;
     }
 
-    _isHandlingScan = true;
+    // Lock processing so duplicate scans are ignored
+    setState(() => _isProcessing = true);
     _processCode(rawValue, targetId);
   }
 
@@ -279,7 +276,7 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                   Navigator.pop(ctx);
                   context.read<AttendanceProvider>().clearLastScanResult();
                   setState(() {
-                    _isHandlingScan = false;
+                    _isProcessing = false;
                   });
                 },
                 icon: Icons.qr_code_scanner_rounded,
@@ -305,16 +302,6 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
           style: AppTypography.manrope(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Start / Refresh Camera',
-            onPressed: () async {
-              try {
-                await _scannerController.start();
-              } catch (_) {}
-              if (mounted) setState(() {});
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.dialpad_rounded),
             tooltip: 'Manual Code Entry',
@@ -388,11 +375,12 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
+                // MobileScanner auto-starts on build, no manual start() needed
                 MobileScanner(
                   controller: _scannerController,
                   onDetect: _onDetect,
                   errorBuilder: (context, error, child) {
-                    final isPermissionDenied = error.errorCode == MobileScannerErrorCode.permissionDenied;
+                    // Clean fallback - only manual entry, no retry buttons
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
@@ -400,52 +388,29 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              isPermissionDenied ? Icons.camera_enhance_rounded : Icons.no_photography_rounded,
+                              Icons.no_photography_rounded,
                               size: 48,
                               color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              isPermissionDenied ? 'Camera Permission Required' : 'Camera Preview Unavailable',
+                              'Camera Not Available',
                               style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              isPermissionDenied
-                                  ? 'Please allow camera permission to scan attendee QR ticket passes.'
-                                  : 'Tap below to start camera or use manual check-in entry.',
+                              'Please grant camera permission in your phone Settings, then reopen this screen.\n\nYou can still verify passes using manual entry.',
                               textAlign: TextAlign.center,
                               style: AppTypography.manrope(
                                 fontSize: 13,
                                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                                  label: const Text('Start / Retry Camera'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      await _scannerController.start();
-                                    } catch (_) {}
-                                    if (mounted) setState(() {});
-                                  },
-                                ),
-                                OutlinedButton.icon(
-                                  icon: const Icon(Icons.dialpad_rounded, size: 18),
-                                  label: const Text('Manual Entry'),
-                                  onPressed: _showManualEntryDialog,
-                                ),
-                              ],
+                            const SizedBox(height: 20),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.dialpad_rounded, size: 18),
+                              label: const Text('Enter Pass Code Manually'),
+                              onPressed: _showManualEntryDialog,
                             ),
                           ],
                         ),
