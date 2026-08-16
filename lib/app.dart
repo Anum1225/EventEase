@@ -67,8 +67,30 @@ final GoRouter _router = GoRouter(
 
     // Unauthenticated trying to access protected route
     if (!isAuth) {
-      if (path.startsWith('/organizer') || path.startsWith('/admin') || path == '/organizer-pending') {
-        return '/login';
+      final isGuestAllowed = path == '/splash' ||
+          path == '/login' ||
+          path == '/register' ||
+          path == '/forgot-password' ||
+          path.startsWith('/attendee') ||
+          path.startsWith('/event-details/') ||
+          path.startsWith('/event/') ||
+          path.startsWith('/gallery/') ||
+          path == '/about-us' ||
+          path == '/contact-us';
+
+      if (!isGuestAllowed) {
+        String pageName = 'this feature';
+        if (path.startsWith('/organizer')) {
+          pageName = 'Organizer Portal';
+        } else if (path.startsWith('/admin')) {
+          pageName = 'Admin Panel';
+        } else if (path.contains('qr-pass') || path.contains('pass')) {
+          pageName = 'QR Pass';
+        } else if (path.contains('feedback')) {
+          pageName = 'Submit Feedback';
+        }
+
+        return '/login?reason=${Uri.encodeComponent(pageName)}';
       }
       return null;
     }
@@ -344,7 +366,19 @@ final GoRouter _router = GoRouter(
   ],
 );
 
-final _authNotifier = ChangeNotifier();
+class AuthNotifier extends ChangeNotifier {
+  AuthProvider? _authProvider;
+
+  void update(AuthProvider authProvider) {
+    if (_authProvider != authProvider) {
+      _authProvider?.removeListener(notifyListeners);
+      _authProvider = authProvider;
+      _authProvider?.addListener(notifyListeners);
+    }
+  }
+}
+
+final _authNotifier = AuthNotifier();
 
 /// Root Application Widget with MultiProvider hierarchy
 class EventEaseApp extends StatelessWidget {
@@ -365,8 +399,9 @@ class EventEaseApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GalleryProvider()),
         ChangeNotifierProvider(create: (_) => ContactProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      child: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, _) {
+          _authNotifier.update(authProvider);
           return MaterialApp.router(
             title: 'EventEase',
             debugShowCheckedModeBanner: false,

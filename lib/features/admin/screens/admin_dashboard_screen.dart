@@ -4,14 +4,14 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/animated_charts.dart';
-import '../../../core/widgets/app_button.dart';
+
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/confirmation_dialog.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/admin_provider.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/theme_provider.dart';
-import '../../../services/seed_data_service.dart';
+
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -21,8 +21,6 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  bool _isSeeding = false;
-
   @override
   void initState() {
     super.initState();
@@ -31,39 +29,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       context.read<EventProvider>().loadPendingApprovals();
       context.read<AdminProvider>().loadPendingOrganizers();
     });
-  }
-
-  void _triggerDatabaseSeed() async {
-    final confirm = await ConfirmationDialog.show(
-      context,
-      title: 'Seed Demo Database?',
-      message: 'This will seed sample accounts (Admin, Organizers, Attendees) and realistic events matching the SRS 1.9 Demonstration Checklist.',
-      confirmLabel: 'Seed Data',
-    );
-
-    if (confirm && mounted) {
-      setState(() => _isSeeding = true);
-      try {
-        final seedService = SeedDataService();
-        await seedService.seedDatabase();
-        if (mounted) {
-          context.read<AdminProvider>().computeSystemStatistics();
-          context.read<EventProvider>().loadPendingApprovals();
-          context.read<AdminProvider>().loadPendingOrganizers();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Demo dataset seeded successfully!')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Seed failed: ${e.toString()}'), backgroundColor: AppColors.lightError),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isSeeding = false);
-      }
-    }
   }
 
   @override
@@ -285,7 +250,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Expanded(
                     child: _buildMetricCard(
                       'Avg Feedback',
-                      stats != null && stats.averageSystemRating > 0 ? stats.averageSystemRating : 5.0,
+                      stats?.averageSystemRating ?? 0.0,
                       Icons.star_rounded,
                       Colors.amber,
                       isDark,
@@ -415,64 +380,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 isDark: isDark,
               ),
 
-              const SizedBox(height: 28),
-
-              // Demo Seeder Box
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [const Color(0xFF1E2235), const Color(0xFF161A26)]
-                        : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.dataset_rounded, color: Colors.amberAccent, size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          'SRS Test Dataset Seeder',
-                          style: AppTypography.manrope(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Instantly populates the system with realistic demo accounts, approved/pending/completed events, registrations, attendance check-ins, and reviews.',
-                      style: AppTypography.manrope(
-                        fontSize: 12.5,
-                        color: Colors.white70,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    AppButton(
-                      text: _isSeeding ? 'Seeding Dataset...' : 'Seed Demo Data Now',
-                      onPressed: _isSeeding ? null : _triggerDatabaseSeed,
-                      isLoading: _isSeeding,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
             ],
           ),
         ),

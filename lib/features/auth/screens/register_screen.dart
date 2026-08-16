@@ -20,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _phoneController = TextEditingController(text: '+92 ');
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _applyAsOrganizer = false;
@@ -166,8 +166,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 14),
 
                           AppTextField(
-                            label: 'Phone Number (Optional)',
-                            hint: '+1 (555) 000-0000',
+                            label: 'Pakistani Phone Number',
+                            hint: '+92 300 1234567',
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.next,

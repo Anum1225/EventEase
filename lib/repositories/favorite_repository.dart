@@ -85,9 +85,10 @@ class FavoriteRepository {
       try {
         final snap = await _favCol!
             .where('userId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
             .get();
-        return snap.docs.map((d) => FavoriteModel.fromFirestore(d)).toList();
+        var list = snap.docs.map((d) => FavoriteModel.fromFirestore(d)).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
       } catch (_) {}
     }
     return _localStore.getUserFavorites(userId);

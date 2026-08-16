@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
@@ -58,40 +61,87 @@ class AppNetworkImage extends StatelessWidget {
           ),
         );
 
-    if (!_isValidUrl) {
+    final url = imageUrl?.trim() ?? '';
+    if (url.isEmpty) {
       return borderRadius != null
           ? ClipRRect(borderRadius: borderRadius!, child: defaultFallback)
           : defaultFallback;
     }
 
-    final imageWidget = Image.network(
-      imageUrl!.trim(),
-      width: width,
-      height: height,
-      fit: fit,
-      // Target memory dimensions to prevent WebGL GPU texture exhaustion
-      cacheWidth: width != null && width!.isFinite ? (width! * 2).round() : null,
-      cacheHeight: height != null && height!.isFinite ? (height! * 2).round() : null,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return placeholderWidget ??
-            Container(
+    Widget imageWidget;
+
+    // 1. Base64 Data URI handling
+    if (url.startsWith('data:image/')) {
+      try {
+        final commaIndex = url.indexOf(',');
+        if (commaIndex != -1) {
+          final base64Data = url.substring(commaIndex + 1);
+          final bytes = base64Decode(base64Data);
+          imageWidget = Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (_, __, ___) => defaultFallback,
+          );
+        } else {
+          imageWidget = defaultFallback;
+        }
+      } catch (_) {
+        imageWidget = defaultFallback;
+      }
+    }
+    // 2. HTTP/HTTPS Network URL handling
+    else if (url.startsWith('http://') || url.startsWith('https://')) {
+      imageWidget = Image.network(
+        url,
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: width != null && width!.isFinite ? (width! * 2).round() : null,
+        cacheHeight: height != null && height!.isFinite ? (height! * 2).round() : null,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return placeholderWidget ??
+              Container(
+                width: width,
+                height: height,
+                color: isDark ? const Color(0xFF222634) : const Color(0xFFE2DFD4),
+                child: const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+        },
+        errorBuilder: (context, error, stackTrace) => defaultFallback,
+      );
+    }
+    // 3. Local File Path handling
+    else {
+      if (kIsWeb) {
+        imageWidget = defaultFallback;
+      } else {
+        try {
+          final file = File(url);
+          if (file.existsSync()) {
+            imageWidget = Image.file(
+              file,
               width: width,
               height: height,
-              color: isDark ? const Color(0xFF222634) : const Color(0xFFE2DFD4),
-              child: const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              fit: fit,
+              errorBuilder: (_, __, ___) => defaultFallback,
             );
-      },
-      errorBuilder: (context, error, stackTrace) {
-        return defaultFallback;
-      },
-    );
+          } else {
+            imageWidget = defaultFallback;
+          }
+        } catch (_) {
+          imageWidget = defaultFallback;
+        }
+      }
+    }
 
     return borderRadius != null
         ? ClipRRect(borderRadius: borderRadius!, child: imageWidget)

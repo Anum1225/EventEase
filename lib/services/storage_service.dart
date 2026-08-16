@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -26,62 +28,75 @@ class StorageService {
   /// Uploads user profile avatar
   Future<String> uploadProfileImage({
     required String userId,
-    required File imageFile,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
+    final bytes = imageBytes ?? (imageFile != null ? await imageFile.readAsBytes() : null);
+    if (bytes == null) throw Exception('No image data provided');
+
     try {
       final storage = _safeStorage;
       if (storage == null) throw Exception('Storage not available');
       final ref = storage.ref().child('users').child(userId).child('avatar.jpg');
-      final uploadTask = ref.putFile(
-        imageFile,
+      final uploadTask = ref.putData(
+        bytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (_) {
-      return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     }
   }
 
   /// Uploads event banner photo
   Future<String> uploadEventBanner({
     required String organizerId,
-    required File imageFile,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
+    final bytes = imageBytes ?? (imageFile != null ? await imageFile.readAsBytes() : null);
+    if (bytes == null) throw Exception('No image data provided');
+
     try {
       final storage = _safeStorage;
       if (storage == null) throw Exception('Storage not available');
       final fileName = 'banner_${_uuid.v4()}.jpg';
       final ref = storage.ref().child('events').child(organizerId).child(fileName);
-      final uploadTask = ref.putFile(
-        imageFile,
+      final uploadTask = ref.putData(
+        bytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (_) {
-      return 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1000&q=80';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     }
   }
 
-  /// Uploads event gallery memory photo
+  /// Uploads gallery memory photo
   Future<String> uploadGalleryImage({
     required String eventId,
-    required File imageFile,
+    String? uploaderId,
+    File? imageFile,
+    Uint8List? imageBytes,
   }) async {
+    final bytes = imageBytes ?? (imageFile != null ? await imageFile.readAsBytes() : null);
+    if (bytes == null) throw Exception('No image data provided');
+
     try {
       final storage = _safeStorage;
       if (storage == null) throw Exception('Storage not available');
       final fileName = 'gallery_${_uuid.v4()}.jpg';
-      final ref = storage.ref().child('gallery').child(eventId).child(fileName);
-      final uploadTask = ref.putFile(
-        imageFile,
+      final ref = storage.ref().child('galleries').child(eventId).child(fileName);
+      final uploadTask = ref.putData(
+        bytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (_) {
-      return 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1000&q=80';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     }
   }
 }

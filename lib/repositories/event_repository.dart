@@ -57,16 +57,15 @@ class EventRepository {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
       try {
         Query<Map<String, dynamic>> query = _eventsCol!
-            .where('status', isEqualTo: AppConstants.eventStatusApproved)
-            .orderBy('date', descending: false);
-
-        if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
-          query = query.where('category', isEqualTo: category.toLowerCase());
-        }
+            .where('status', isEqualTo: AppConstants.eventStatusApproved);
 
         final snap = await query.get().timeout(const Duration(milliseconds: 2500));
         if (snap.docs.isNotEmpty) {
           var events = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
+
+          if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
+            events = events.where((e) => e.category.toLowerCase() == category.toLowerCase()).toList();
+          }
 
           if (searchQuery != null && searchQuery.trim().isNotEmpty) {
             final qLower = searchQuery.trim().toLowerCase();
@@ -92,12 +91,19 @@ class EventRepository {
             events = events.where((e) => !e.isFull).toList();
           }
 
+          events.sort((a, b) => a.date.compareTo(b.date));
           return events;
         }
       } catch (_) {}
     }
 
-    return _localStore.getApprovedEvents(category: category, query: searchQuery);
+    return _localStore.getApprovedEvents(
+      category: category,
+      query: searchQuery,
+      date: date,
+      location: location,
+      onlyAvailable: onlyAvailable,
+    );
   }
 
   Future<EventModel?> getEventById(String eventId) async {

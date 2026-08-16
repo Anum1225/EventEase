@@ -45,6 +45,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     });
 
     try {
+      final user = context.read<AuthProvider>().currentUser;
+      if (user != null) {
+        await context.read<RegistrationProvider>().loadUserData(user.id);
+      }
+
       final eventRepo = EventRepository();
       final event = await eventRepo.getEventById(widget.eventId);
       if (event != null) {
@@ -73,7 +78,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final user = authProvider.currentUser;
 
     if (user == null) {
-      context.push('/login');
+      context.push('/login?reason=${Uri.encodeComponent('Event Registration')}');
       return;
     }
 
@@ -201,6 +206,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         userId: authProvider.currentUser!.id,
                         eventId: event.id,
                       );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isFav ? 'Removed from Saved Events' : 'Saved to Favorites! ❤️',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    } else {
+                      context.push('/login?reason=${Uri.encodeComponent('Saved Events')}');
                     }
                   },
                 ),
@@ -262,6 +277,59 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isRegistered) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.green : AppColors.lightSuccess).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: (isDark ? Colors.green : AppColors.lightSuccess).withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: AppColors.lightSuccess, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'YOU ARE REGISTERED',
+                                  style: AppTypography.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? Colors.greenAccent : AppColors.lightSuccess,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                Text(
+                                  'Your digital entry pass with QR code is ready.',
+                                  style: AppTypography.manrope(
+                                    fontSize: 12,
+                                    color: secondaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final reg = userRegistration ?? regProvider.getRegistrationForEvent(event.id);
+                              if (reg != null) {
+                                context.push('/qr-pass/${reg.id}');
+                              } else {
+                                context.push('/attendee/my-events');
+                              }
+                            },
+                            child: const Text('View Pass', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Status & Capacity Summary Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -608,56 +676,70 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
           ],
         ),
-        child: event.isCompleted && isRegistered && userRegistration != null
-            ? Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'View Pass',
-                      variant: AppButtonVariant.outlined,
-                      onPressed: () => context.push('/qr-pass/${userRegistration.id}'),
-                      icon: Icons.qr_code_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Leave Review',
-                      onPressed: () => context.push('/feedback/${event.id}'),
-                      icon: Icons.rate_review_rounded,
-                    ),
-                  ),
-                ],
-              )
-            : isRegistered && userRegistration != null
-                ? AppButton(
-                    text: 'View QR Ticket Pass',
-                    onPressed: () => context.push('/qr-pass/${userRegistration.id}'),
-                    icon: Icons.qr_code_rounded,
+        child: isRegistered
+            ? (event.isCompleted
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: AppButton(
+                          text: 'View Pass',
+                          variant: AppButtonVariant.outlined,
+                          onPressed: () {
+                            final reg = userRegistration ?? regProvider.getRegistrationForEvent(event.id);
+                            if (reg != null) {
+                              context.push('/qr-pass/${reg.id}');
+                            } else {
+                              context.push('/attendee/my-events');
+                            }
+                          },
+                          icon: Icons.qr_code_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: AppButton(
+                          text: 'Leave Review',
+                          onPressed: () => context.push('/feedback/${event.id}'),
+                          icon: Icons.rate_review_rounded,
+                        ),
+                      ),
+                    ],
                   )
-                : event.isCompleted
-                    ? AppButton(
-                        text: 'Event Completed (Leave Feedback)',
-                        variant: AppButtonVariant.outlined,
-                        onPressed: () => context.push('/feedback/${event.id}'),
-                        icon: Icons.rate_review_rounded,
+                : AppButton(
+                    text: 'View Digital Ticket Pass',
+                    onPressed: () {
+                      final reg = userRegistration ?? regProvider.getRegistrationForEvent(event.id);
+                      if (reg != null) {
+                        context.push('/qr-pass/${reg.id}');
+                      } else {
+                        context.push('/attendee/my-events');
+                      }
+                    },
+                    icon: Icons.qr_code_rounded,
+                  ))
+            : event.isCompleted
+                ? AppButton(
+                    text: 'Event Completed (Leave Feedback)',
+                    variant: AppButtonVariant.outlined,
+                    onPressed: () => context.push('/feedback/${event.id}'),
+                    icon: Icons.rate_review_rounded,
+                  )
+                : event.isCancelled
+                    ? const AppButton(
+                        text: 'Event Cancelled',
+                        onPressed: null,
                       )
-                    : event.isCancelled
+                    : event.isFull
                         ? const AppButton(
-                            text: 'Event Cancelled',
+                            text: 'Event Full (Capacity Reached)',
                             onPressed: null,
                           )
-                        : event.isFull
-                            ? const AppButton(
-                                text: 'Event Full (Capacity Reached)',
-                                onPressed: null,
-                              )
-                            : AppButton(
-                                text: 'Register Now (${event.remainingSeats} left)',
-                                onPressed: _onRegisterTapped,
-                                isLoading: regProvider.isLoading,
-                                icon: Icons.how_to_reg_rounded,
-                              ),
+                        : AppButton(
+                            text: 'Register Now (${event.remainingSeats} left)',
+                            onPressed: _onRegisterTapped,
+                            isLoading: regProvider.isLoading,
+                            icon: Icons.how_to_reg_rounded,
+                          ),
       ),
     );
   }

@@ -93,8 +93,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                Navigator.pop(ctx);
                 await authProvider.updateNotificationPreferences(prefs);
-                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Notification preferences saved! 🔔'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
               child: const Text('Save Preferences'),
             ),
@@ -145,6 +153,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final notifProvider = context.watch<NotificationProvider>();
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Notifications',
+            style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+        ),
+        body: EmptyStateView(
+          icon: Icons.lock_outline_rounded,
+          title: 'Sign In Required',
+          message: 'Please log in to receive instant event reminders, announcements, and entry updates.',
+          actionLabel: 'Sign In Now',
+          onAction: () => context.push('/login?reason=${Uri.encodeComponent('Notifications')}'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

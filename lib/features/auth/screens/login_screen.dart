@@ -53,18 +53,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _fillDemo(String email, String pass) {
-    _emailController.text = email;
-    _passwordController.text = pass;
-    _submit();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final authProvider = context.watch<AuthProvider>();
+
+    final reasonParam = GoRouterState.of(context).uri.queryParameters['reason'];
 
     return Scaffold(
       appBar: AppBar(
@@ -131,6 +127,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (reasonParam != null && reasonParam.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: (isDark ? AppColors.darkWarning : AppColors.lightWarning)
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: (isDark ? AppColors.darkWarning : AppColors.lightWarning)
+                                      .withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock_outline_rounded,
+                                    size: 18,
+                                    color: isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'You have to log in to access $reasonParam.',
+                                      style: AppTypography.manrope(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? AppColors.darkWarning : AppColors.lightWarning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
                           if (authProvider.errorMessage != null) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
@@ -215,75 +247,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             text: 'Sign In',
                             onPressed: _submit,
                             isLoading: authProvider.isLoading,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Quick Demo Roles Card (for seamless evaluator testing)
-                    AppCard(
-                      isGlassDark: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.lightAccent),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Demo Quick Fill (SRS Evaluator)',
-                                style: AppTypography.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    minimumSize: const Size(0, 34),
-                                  ),
-                                  onPressed: () => _fillDemo('attendee1@eventease.com', 'AttendeePass2026!'),
-                                  child: const Text('Attendee', style: TextStyle(fontSize: 11)),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    minimumSize: const Size(0, 34),
-                                  ),
-                                  onPressed: () => _fillDemo('organizer1@eventease.com', 'HostPass2026!'),
-                                  child: const Text('Organizer', style: TextStyle(fontSize: 11)),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: const BorderSide(color: Colors.white24),
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    minimumSize: const Size(0, 34),
-                                  ),
-                                  onPressed: () => _fillDemo('admin@eventease.com', 'AdminPass2026!'),
-                                  child: const Text('Admin', style: TextStyle(fontSize: 11)),
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),

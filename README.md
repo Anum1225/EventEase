@@ -172,16 +172,13 @@ lib/
 
 ## 7. Demo Credentials
 
-The application includes an automated test dataset seeder matching the SRS 1.9 Demonstration Checklist. Evaluators can also use the **Quick Demo Fill** buttons on the Login screen:
+The application includes pre-configured demo credentials for testing and evaluation:
 
 | Role | Email | Password | Account Details & Permissions |
 |---|---|---|---|
-| **System Admin** | `admin@eventease.com` | `AdminPass123!` | Full administrative privileges, approval queue, user bans, analytics |
-| **Verified Host** | `tech.club@eventease.com` | `OrgPass123!` | Approved organizer, hosts tech events, attendance QR scanning |
-| **Verified Host** | `arts.society@eventease.com` | `OrgPass123!` | Approved organizer, hosts arts/culture showcases |
-| **Pending Host** | `pending.host@eventease.com` | `OrgPass123!` | Applicant pending admin verification (restricted access) |
-| **Attendee 1** | `attendee1@eventease.com` | `AttendeePass123!` | Standard attendee with pre-registered active ticket passes |
-| **Attendee 2** | `attendee2@eventease.com` | `AttendeePass123!` | Standard attendee for testing capacity and duplicate check-in |
+| **System Admin** | `admin@eventease.com` | `Admin123!` | Full administrative privileges, approval queue, user directory, analytics |
+| **Organizer** | `arandaiman@gmail.com` | `1QaZ2WsX` | Verified organizer, creates/manages events, scans attendee QR ticket passes |
+| **Attendee** | `noobgamerabduljabber@gmail.com` | `anumnaz` | Standard attendee account for event registration, QR ticket pass, and reviews |
 
 > **Note**: To populate or refresh this dataset in Firestore at any time, log in as `admin@eventease.com`, navigate to the **Command Center Overview**, and tap **"Seed Demo Data Now"**.
 

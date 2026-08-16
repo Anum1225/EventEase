@@ -63,454 +63,7 @@ class LocalDataStore {
   void _initializeData() {
     if (_initialized) return;
     _initialized = true;
-
-    final now = DateTime.now();
-
-    // 1. Seed Users & Passwords
-    final seedUsers = [
-      UserModel(
-        id: 'admin_001',
-        name: 'System Administrator',
-        email: 'admin@eventease.com',
-        role: AppConstants.roleAdmin,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 60)),
-      ),
-      UserModel(
-        id: 'org_001',
-        name: 'TechSummit Global',
-        email: 'organizer1@eventease.com',
-        phone: '+1 (555) 234-5678',
-        role: AppConstants.roleOrganizer,
-        organizerApprovalStatus: 'approved',
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 45)),
-      ),
-      UserModel(
-        id: 'org_002',
-        name: 'Creative Workshops Inc.',
-        email: 'organizer2@eventease.com',
-        phone: '+1 (555) 345-6789',
-        role: AppConstants.roleOrganizer,
-        organizerApprovalStatus: 'approved',
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 30)),
-      ),
-      UserModel(
-        id: 'org_003_pending',
-        name: 'Innovate Community Hub',
-        email: 'pending_org@eventease.com',
-        phone: '+1 (555) 456-7890',
-        role: AppConstants.roleOrganizerPending,
-        organizerApprovalStatus: 'pending',
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 2)),
-      ),
-      UserModel(
-        id: 'att_001',
-        name: 'Alex Johnson',
-        email: 'attendee1@eventease.com',
-        phone: '+1 (555) 987-6543',
-        role: AppConstants.roleAttendee,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 20)),
-      ),
-      UserModel(
-        id: 'att_002',
-        name: 'Sophia Martinez',
-        email: 'attendee2@eventease.com',
-        role: AppConstants.roleAttendee,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 15)),
-      ),
-      UserModel(
-        id: 'att_003',
-        name: 'Liam Chen',
-        email: 'attendee3@eventease.com',
-        role: AppConstants.roleAttendee,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 10)),
-      ),
-      UserModel(
-        id: 'att_004',
-        name: 'Emma Davis',
-        email: 'attendee4@eventease.com',
-        role: AppConstants.roleAttendee,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 8)),
-      ),
-      UserModel(
-        id: 'att_005',
-        name: 'Noah Wilson',
-        email: 'attendee5@eventease.com',
-        role: AppConstants.roleAttendee,
-        status: AppConstants.userStatusActive,
-        createdAt: now.subtract(const Duration(days: 5)),
-      ),
-    ];
-
-    for (final u in seedUsers) {
-      _users[u.id] = u;
-    }
-
-    _passwords['admin@eventease.com'] = 'AdminPass2026!';
-    _passwords['organizer1@eventease.com'] = 'HostPass2026!';
-    _passwords['organizer2@eventease.com'] = 'HostPass2026!';
-    _passwords['pending_org@eventease.com'] = 'HostPass2026!';
-    _passwords['attendee1@eventease.com'] = 'AttendeePass2026!';
-    _passwords['attendee2@eventease.com'] = 'AttendeePass2026!';
-    _passwords['attendee3@eventease.com'] = 'AttendeePass2026!';
-    _passwords['attendee4@eventease.com'] = 'AttendeePass2026!';
-    _passwords['attendee5@eventease.com'] = 'AttendeePass2026!';
-
-    // 2. Seed Events
-    final seedEvents = [
-      EventModel(
-        id: 'evt_001_flutter',
-        organizerId: 'org_001',
-        organizerName: 'TechSummit Global',
-        organizerEmail: 'organizer1@eventease.com',
-        title: 'Flutter & AI Mobile Dev Summit 2026',
-        description:
-            'Explore the future of multi-platform engineering, generative UI architectures, and production-scale Flutter apps.',
-        category: 'technology',
-        date: now.add(const Duration(days: 5)),
-        startTime: '10:00 AM',
-        endTime: '4:00 PM',
-        location: 'Grand Convention Center, Hall B, San Francisco',
-        maxParticipants: 100,
-        registeredCount: 42,
-        status: AppConstants.eventStatusApproved,
-        imageUrl:
-            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1000&q=80',
-        rules:
-            'Bring your laptop, student or government ID. Badges will be issued upon scanning.',
-        contactInfo: 'summit@techsummitglobal.io',
-        createdAt: now.subtract(const Duration(days: 12)),
-      ),
-      EventModel(
-        id: 'evt_002_music',
-        organizerId: 'org_002',
-        organizerName: 'Creative Workshops Inc.',
-        organizerEmail: 'organizer2@eventease.com',
-        title: 'Acoustic Sunset Music Festival',
-        description:
-            'An evening of live unplugged acoustic performances, indie musicians, and gourmet food trucks.',
-        category: 'music',
-        date: now.add(const Duration(days: 8)),
-        startTime: '6:00 PM',
-        endTime: '11:00 PM',
-        location: 'Riverside Amphitheater, Austin, TX',
-        maxParticipants: 200,
-        registeredCount: 88,
-        status: AppConstants.eventStatusApproved,
-        imageUrl:
-            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1000&q=80',
-        rules: 'Lawn chairs and blankets allowed. No outside glass containers.',
-        contactInfo: 'support@creativesounds.com',
-        createdAt: now.subtract(const Duration(days: 10)),
-      ),
-      EventModel(
-        id: 'evt_003_workshop',
-        organizerId: 'org_002',
-        organizerName: 'Creative Workshops Inc.',
-        organizerEmail: 'organizer2@eventease.com',
-        title: 'Mastering Modern UI/UX Prototyping',
-        description:
-            'Hands-on interactive design masterclass on typography hierarchy, design systems, and micro-interactions.',
-        category: 'workshop',
-        date: now.add(const Duration(days: 12)),
-        startTime: '2:00 PM',
-        endTime: '5:30 PM',
-        location: 'Design Lab Studios, Room 402, Seattle, WA',
-        maxParticipants: 30,
-        registeredCount: 29,
-        status: AppConstants.eventStatusApproved,
-        imageUrl:
-            'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1000&q=80',
-        rules: 'Figma pre-installed on personal laptop.',
-        contactInfo: 'workshops@designlab.com',
-        createdAt: now.subtract(const Duration(days: 7)),
-      ),
-      EventModel(
-        id: 'evt_004_sports',
-        organizerId: 'org_001',
-        organizerName: 'TechSummit Global',
-        organizerEmail: 'organizer1@eventease.com',
-        title: 'City Marathon & 5K Charity Fun Run',
-        description:
-            'Annual community marathon supporting regional pediatric healthcare. Open to all runners.',
-        category: 'sports',
-        date: now.add(const Duration(days: 15)),
-        startTime: '7:00 AM',
-        endTime: '12:00 PM',
-        location: 'Downtown Waterfront Park, Chicago, IL',
-        maxParticipants: 500,
-        registeredCount: 150,
-        status: AppConstants.eventStatusApproved,
-        imageUrl:
-            'https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=1000&q=80',
-        rules: 'Bib pickup starts 6:00 AM. Hydration stations every 1 mile.',
-        contactInfo: 'run@citymarathon.org',
-        createdAt: now.subtract(const Duration(days: 20)),
-      ),
-      EventModel(
-        id: 'evt_005_pending',
-        organizerId: 'org_001',
-        organizerName: 'TechSummit Global',
-        organizerEmail: 'organizer1@eventease.com',
-        title: 'Cloud Native & DevOps Symposium',
-        description:
-            'Deep dive into Kubernetes architecture, multi-cloud networking, and distributed observability.',
-        category: 'conference',
-        date: now.add(const Duration(days: 22)),
-        startTime: '9:00 AM',
-        endTime: '5:00 PM',
-        location: 'Tech Hub Auditorium, Boston, MA',
-        maxParticipants: 150,
-        registeredCount: 0,
-        status: AppConstants.eventStatusPendingApproval,
-        imageUrl:
-            'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1000&q=80',
-        createdAt: now.subtract(const Duration(hours: 4)),
-      ),
-      EventModel(
-        id: 'evt_006_completed',
-        organizerId: 'org_001',
-        organizerName: 'TechSummit Global',
-        organizerEmail: 'organizer1@eventease.com',
-        title: 'Global Tech Leaders Expo 2026',
-        description:
-            'Keynotes from world-renowned technology innovators and industry founders.',
-        category: 'technology',
-        date: now.subtract(const Duration(days: 10)),
-        startTime: '9:00 AM',
-        endTime: '6:00 PM',
-        location: 'Moscone Center, San Francisco, CA',
-        maxParticipants: 80,
-        registeredCount: 65,
-        status: AppConstants.eventStatusCompleted,
-        imageUrl:
-            'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1000&q=80',
-        createdAt: now.subtract(const Duration(days: 40)),
-      ),
-      EventModel(
-        id: 'evt_007_cancelled',
-        organizerId: 'org_002',
-        organizerName: 'Creative Workshops Inc.',
-        organizerEmail: 'organizer2@eventease.com',
-        title: 'Outdoor Drone Filmmaking Masterclass',
-        description: 'Aerial cinema filming techniques and legal compliance.',
-        category: 'education',
-        date: now.add(const Duration(days: 6)),
-        startTime: '1:00 PM',
-        endTime: '4:00 PM',
-        location: 'Skyline Ridge, Denver, CO',
-        maxParticipants: 25,
-        registeredCount: 12,
-        status: AppConstants.eventStatusCancelled,
-        cancellationReason:
-            'Adverse weather forecast and severe storm warnings.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=1000&q=80',
-        createdAt: now.subtract(const Duration(days: 14)),
-      ),
-      EventModel(
-        id: 'evt_008_rejected',
-        organizerId: 'org_002',
-        organizerName: 'Creative Workshops Inc.',
-        organizerEmail: 'organizer2@eventease.com',
-        title: 'Unverified Cryptocurrency Trading Meetup',
-        description: 'High-frequency algorithmic crypto trade coaching session.',
-        category: 'business',
-        date: now.add(const Duration(days: 18)),
-        startTime: '6:00 PM',
-        endTime: '8:00 PM',
-        location: 'Private Suite 3A, New York',
-        maxParticipants: 50,
-        registeredCount: 0,
-        status: AppConstants.eventStatusRejected,
-        rejectionReason:
-            'Event violates community guidelines regarding financial advisory guarantees.',
-        imageUrl:
-            'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1000&q=80',
-        createdAt: now.subtract(const Duration(days: 16)),
-      ),
-    ];
-
-    for (final e in seedEvents) {
-      _events[e.id] = e;
-    }
-
-    // 3. Seed Registrations
-    final seedRegistrations = [
-      RegistrationModel(
-        id: 'reg_001',
-        eventId: 'evt_001_flutter',
-        userId: 'att_001',
-        userName: 'Alex Johnson',
-        userEmail: 'attendee1@eventease.com',
-        eventTitle: 'Flutter & AI Mobile Dev Summit 2026',
-        eventDate: now.add(const Duration(days: 5)),
-        eventLocation: 'Grand Convention Center, Hall B, San Francisco',
-        eventBanner:
-            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1000&q=80',
-        eventCategory: 'technology',
-        registeredAt: now.subtract(const Duration(days: 4)),
-        status: AppConstants.registrationStatusRegistered,
-        qrCode: 'EASE-reg_001-DEMOPASS1',
-      ),
-      RegistrationModel(
-        id: 'reg_002',
-        eventId: 'evt_006_completed',
-        userId: 'att_001',
-        userName: 'Alex Johnson',
-        userEmail: 'attendee1@eventease.com',
-        eventTitle: 'Global Tech Leaders Expo 2026',
-        eventDate: now.subtract(const Duration(days: 10)),
-        eventLocation: 'Moscone Center, San Francisco, CA',
-        eventBanner:
-            'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1000&q=80',
-        eventCategory: 'technology',
-        registeredAt: now.subtract(const Duration(days: 35)),
-        status: AppConstants.registrationStatusRegistered,
-        qrCode: 'EASE-reg_002-CHECKEDIN1',
-      ),
-      RegistrationModel(
-        id: 'reg_003',
-        eventId: 'evt_006_completed',
-        userId: 'att_002',
-        userName: 'Sophia Martinez',
-        userEmail: 'attendee2@eventease.com',
-        eventTitle: 'Global Tech Leaders Expo 2026',
-        eventDate: now.subtract(const Duration(days: 10)),
-        eventLocation: 'Moscone Center, San Francisco, CA',
-        eventBanner:
-            'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1000&q=80',
-        eventCategory: 'technology',
-        registeredAt: now.subtract(const Duration(days: 34)),
-        status: AppConstants.registrationStatusRegistered,
-        qrCode: 'EASE-reg_003-CHECKEDIN2',
-      ),
-    ];
-
-    for (final r in seedRegistrations) {
-      _registrations[r.id] = r;
-    }
-
-    // 4. Seed Attendance
-    final seedAttendance = [
-      AttendanceModel(
-        id: 'att_rec_001',
-        registrationId: 'reg_002',
-        eventId: 'evt_006_completed',
-        userId: 'att_001',
-        userName: 'Alex Johnson',
-        userEmail: 'attendee1@eventease.com',
-        attended: true,
-        checkedInAt: now.subtract(const Duration(days: 10, hours: 2)),
-        checkedInBy: 'org_001',
-      ),
-      AttendanceModel(
-        id: 'att_rec_002',
-        registrationId: 'reg_003',
-        eventId: 'evt_006_completed',
-        userId: 'att_002',
-        userName: 'Sophia Martinez',
-        userEmail: 'attendee2@eventease.com',
-        attended: true,
-        checkedInAt: now.subtract(const Duration(days: 10, hours: 1)),
-        checkedInBy: 'org_001',
-      ),
-    ];
-
-    for (final a in seedAttendance) {
-      _attendance[a.id] = a;
-    }
-
-    // 5. Seed Feedback
-    final seedFeedback = [
-      FeedbackModel(
-        id: 'att_001_evt_006_completed',
-        eventId: 'evt_006_completed',
-        userId: 'att_001',
-        userName: 'Alex Johnson',
-        rating: 5,
-        comment:
-            'Incredible speaker lineup and seamless event organization!',
-        submittedAt: now.subtract(const Duration(days: 9)),
-      ),
-      FeedbackModel(
-        id: 'att_002_evt_006_completed',
-        eventId: 'evt_006_completed',
-        userId: 'att_002',
-        userName: 'Sophia Martinez',
-        rating: 5,
-        comment:
-            'Top quality production. The workshops were extremely practical.',
-        submittedAt: now.subtract(const Duration(days: 9, hours: 4)),
-      ),
-    ];
-
-    for (final f in seedFeedback) {
-      _feedbacks[f.id] = f;
-    }
-
-    // 6. Seed Gallery
-    final seedGallery = [
-      GalleryModel(
-        id: 'gal_001',
-        eventId: 'evt_006_completed',
-        uploadedBy: 'org_001',
-        uploaderName: 'TechSummit Global',
-        imageUrl:
-            'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1000&q=80',
-        caption: 'Opening Keynote on Distributed AI Systems',
-        uploadedAt: now.subtract(const Duration(days: 9)),
-      ),
-      GalleryModel(
-        id: 'gal_002',
-        eventId: 'evt_006_completed',
-        uploadedBy: 'org_001',
-        uploaderName: 'TechSummit Global',
-        imageUrl:
-            'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1000&q=80',
-        caption: 'Attendee networking lounge & coffee break',
-        uploadedAt: now.subtract(const Duration(days: 9)),
-      ),
-    ];
-
-    for (final g in seedGallery) {
-      _galleries[g.id] = g;
-    }
-
-    // 7. Seed Notifications
-    final seedNotifications = [
-      NotificationModel(
-        id: 'notif_001',
-        userId: 'att_001',
-        title: 'Registration Confirmed 🎉',
-        message: 'You are registered for Flutter & AI Mobile Dev Summit 2026.',
-        type: AppConstants.notifRegistrationConfirm,
-        eventId: 'evt_001_flutter',
-        createdAt: now.subtract(const Duration(days: 4)),
-        isRead: false,
-      ),
-      NotificationModel(
-        id: 'notif_002',
-        userId: 'att_001',
-        title: 'Event Reminder ⏰',
-        message: 'Summit starts in 5 days at Grand Convention Center.',
-        type: AppConstants.notifReminder,
-        eventId: 'evt_001_flutter',
-        createdAt: now.subtract(const Duration(days: 1)),
-        isRead: true,
-      ),
-    ];
-
-    for (final n in seedNotifications) {
-      _notifications[n.id] = n;
-    }
+    // No seed data — all data comes from Firebase.
   }
 
   static bool enableDiskPersistence = true;
@@ -532,6 +85,21 @@ class LocalDataStore {
       final prefs = await _getSafePrefs();
       if (prefs == null) return;
       _diskLoaded = true;
+
+      // Migration v2: purge any previously-persisted seed / demo data
+      final diskVersion = prefs.getInt('local_store_version') ?? 0;
+      if (diskVersion < 2) {
+        final keysToRemove = [
+          'local_passwords', 'local_users', 'local_events',
+          'local_registrations', 'local_favorites', 'local_attendance',
+          'local_feedback', 'local_notifications',
+        ];
+        for (final k in keysToRemove) {
+          await prefs.remove(k);
+        }
+        await prefs.setInt('local_store_version', 2);
+        return; // Nothing to load; all stale data cleared
+      }
 
       // 1. Passwords
       final passwordsJson = prefs.getString('local_passwords');
@@ -752,7 +320,8 @@ class LocalDataStore {
         throw Exception('Invalid email or password.');
       }
     } else {
-      final isDemoPass = password == 'AdminPass123!' ||
+      final isDemoPass = password == 'Admin123!' ||
+          password == 'AdminPass123!' ||
           password == 'AdminPass2026!' ||
           password == 'OrganizerPass123!' ||
           password == 'HostPass2026!' ||
@@ -906,9 +475,15 @@ class LocalDataStore {
   // EVENT METHODS
   // =========================================================================
 
-  List<EventModel> getApprovedEvents({String? category, String? query}) {
+  List<EventModel> getApprovedEvents({
+    String? category,
+    String? query,
+    DateTime? date,
+    String? location,
+    bool onlyAvailable = false,
+  }) {
     var list = _events.values.where((e) => e.isApproved || e.isCompleted).toList();
-    if (category != null && category.isNotEmpty && category != 'all') {
+    if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
       list = list.where((e) => e.category.toLowerCase() == category.toLowerCase()).toList();
     }
     if (query != null && query.trim().isNotEmpty) {
@@ -917,6 +492,19 @@ class LocalDataStore {
           e.title.toLowerCase().contains(q) ||
           e.description.toLowerCase().contains(q) ||
           e.location.toLowerCase().contains(q)).toList();
+    }
+    if (location != null && location.trim().isNotEmpty) {
+      final l = location.trim().toLowerCase();
+      list = list.where((e) => e.location.toLowerCase().contains(l)).toList();
+    }
+    if (date != null) {
+      list = list.where((e) =>
+          e.date.year == date.year &&
+          e.date.month == date.month &&
+          e.date.day == date.day).toList();
+    }
+    if (onlyAvailable) {
+      list = list.where((e) => !e.isFull).toList();
     }
     list.sort((a, b) => a.date.compareTo(b.date));
     return list;
@@ -1393,9 +981,7 @@ class LocalDataStore {
     _notifications.clear();
     _favorites.clear();
     _contacts.clear();
-    _initialized = false;
-    _initializeData();
-    _eventsStreamController.add(_events.values.toList());
+    _eventsStreamController.add([]);
     _saveToDisk();
   }
 }

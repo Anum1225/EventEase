@@ -45,22 +45,33 @@ class RegistrationRepository {
     // 1. Try Firebase Firestore Transaction only if live credentials configured
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _safeFirestore != null && _regCol != null && _eventsCol != null) {
       try {
+        // Prevent duplicate registration for the same user & event
+        final existingSnap = await _regCol!
+            .where('eventId', isEqualTo: eventId)
+            .where('userId', isEqualTo: userId)
+            .where('status', isEqualTo: AppConstants.registrationStatusRegistered)
+            .limit(1)
+            .get();
+        if (existingSnap.docs.isNotEmpty) {
+          throw Exception('You are already registered for this event.');
+        }
+
         final registrationDocRef = _regCol!.doc();
         final eventDocRef = _eventsCol!.doc(eventId);
 
         final registration = await _safeFirestore!.runTransaction<RegistrationModel>((transaction) async {
           final eventDoc = await transaction.get(eventDocRef);
           if (!eventDoc.exists || eventDoc.data() == null) {
-            throw Exception('Event does not exist');
+            throw Exception('Event does not exist.');
           }
 
           final event = EventModel.fromFirestore(eventDoc);
           if (event.status != AppConstants.eventStatusApproved) {
-            throw Exception('Registration is not open for this event (${event.status})');
+            throw Exception('Registration is not open for this event (${event.status}).');
           }
 
           if (event.registeredCount >= event.maxParticipants) {
-            throw Exception('Event is currently full (Capacity: ${event.maxParticipants})');
+            throw Exception('Event is currently full (Capacity: ${event.maxParticipants}).');
           }
 
           final qrToken = 'EASE-${_uuid.v4()}-${registrationDocRef.id.substring(0, 6)}';
@@ -89,26 +100,38 @@ class RegistrationRepository {
           return newReg;
         });
 
-        _localStore.registerForEvent(
-          eventId: eventId,
-          userId: userId,
-          userName: userName,
-          userEmail: userEmail,
-          eventTitle: registration.eventTitle ?? 'Event',
-        );
+        // Safely sync local cache without failing successful Firestore transaction
+        try {
+          _localStore.registerForEvent(
+            eventId: eventId,
+            userId: userId,
+            userName: userName,
+            userEmail: userEmail,
+            eventTitle: registration.eventTitle ?? 'Event',
+          );
+        } catch (_) {}
 
         return registration;
-      } catch (_) {}
+      } catch (e) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        if (errorMsg.contains('already registered') ||
+            errorMsg.contains('full') ||
+            errorMsg.contains('not open') ||
+            errorMsg.contains('does not exist')) {
+          throw Exception(errorMsg);
+        }
+      }
     }
 
-    // 2. Seamless local atomic capacity reservation engine
+    // 2. Local database engine fallback
     final event = _localStore.getEventById(eventId);
+    if (event == null) throw Exception('Event does not exist.');
     return _localStore.registerForEvent(
       eventId: eventId,
       userId: userId,
       userName: userName,
       userEmail: userEmail,
-      eventTitle: event?.title ?? 'Event',
+      eventTitle: event.title,
     );
   }
 
@@ -215,9 +238,10 @@ class RegistrationRepository {
       try {
         final snap = await _regCol!
             .where('userId', isEqualTo: userId)
-            .orderBy('registeredAt', descending: true)
             .get();
-        return snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+        var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+        list.sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
+        return list;
       } catch (_) {}
     }
     return _localStore.getUserRegistrations(userId);

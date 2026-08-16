@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -29,13 +32,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   File? _pickedImageFile;
+  Uint8List? _pickedImageBytes;
 
   @override
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
     _nameController = TextEditingController(text: user?.name ?? '');
-    _phoneController = TextEditingController(text: user?.phone ?? '');
+    final phoneText = user?.phone?.isNotEmpty == true ? user!.phone! : '+92 ';
+    _phoneController = TextEditingController(text: phoneText);
   }
 
   @override
@@ -48,8 +53,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null) {
+      final bytes = await picked.readAsBytes();
       setState(() {
-        _pickedImageFile = File(picked.path);
+        _pickedImageBytes = bytes;
+        if (!kIsWeb) {
+          _pickedImageFile = File(picked.path);
+        }
       });
     }
   }
@@ -62,12 +71,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       newProfileImageFile: _pickedImageFile,
+      newProfileImageBytes: _pickedImageBytes,
     );
 
     if (success && mounted) {
       setState(() {
         _isEditing = false;
         _pickedImageFile = null;
+        _pickedImageBytes = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
@@ -293,12 +304,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
-                    backgroundImage: _pickedImageFile != null
-                        ? FileImage(_pickedImageFile!) as ImageProvider
-                        : (user?.profileImage != null && user!.profileImage!.isNotEmpty
-                            ? NetworkImage(user.profileImage!)
-                            : null),
-                    child: (_pickedImageFile == null && (user?.profileImage == null || user!.profileImage!.isEmpty))
+                    backgroundImage: _pickedImageBytes != null
+                        ? MemoryImage(_pickedImageBytes!) as ImageProvider
+                        : (_pickedImageFile != null && !kIsWeb)
+                            ? FileImage(_pickedImageFile!) as ImageProvider
+                            : (user?.profileImage != null && user!.profileImage!.isNotEmpty
+                                ? (user.profileImage!.startsWith('data:image/')
+                                    ? MemoryImage(base64Decode(user.profileImage!.split(',').last)) as ImageProvider
+                                    : NetworkImage(user.profileImage!))
+                                : null),
+                    child: (_pickedImageBytes == null && _pickedImageFile == null && (user?.profileImage == null || user!.profileImage!.isEmpty))
                         ? Text(
                             (user?.name ?? 'U')[0].toUpperCase(),
                             style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.white),
@@ -330,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 14),
 
             Text(
-              user?.name ?? 'Attendee',
+              user?.name ?? 'Guest',
               style: AppTypography.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -339,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              user?.email ?? '',
+              user?.email ?? 'Sign in to sync your tickets & saved events',
               style: AppTypography.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -357,17 +372,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     : user?.role == AppConstants.roleOrganizer
                         ? (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent)
                         : (isDark ? AppColors.darkAccent : AppColors.lightAccent),
-                borderRadius: BorderRadius.circular(100),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                (user?.role ?? 'attendee').toUpperCase(),
-                style: AppTypography.manrope(
-                  fontSize: 11,
+                (user?.role ?? 'GUEST').toUpperCase(),
+                style: TextStyle(
+                  color: user?.role == AppConstants.roleAdmin ? Colors.white : (isDark ? Colors.black : Colors.white),
                   fontWeight: FontWeight.w700,
-                  color: user?.role == AppConstants.roleAttendee
-                      ? (isDark ? AppColors.darkOnAccent : AppColors.lightOnAccent)
-                      : Colors.white,
-                  letterSpacing: 0.8,
+                  fontSize: 11,
                 ),
               ),
             ),
@@ -397,7 +409,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 12),
                           AppTextField(
-                            label: 'Phone Number',
+                            label: 'Pakistani Phone Number',
+                            hint: '+92 300 1234567',
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             validator: Validators.phone,
@@ -539,27 +552,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Log Out Button
-            AppButton(
-              text: 'Log Out',
-              variant: AppButtonVariant.outlined,
-              icon: Icons.logout_rounded,
-              onPressed: () async {
-                final confirm = await ConfirmationDialog.show(
-                  context,
-                  title: 'Sign Out?',
-                  message: 'Are you sure you want to sign out of EventEase?',
-                  confirmLabel: 'Sign Out',
-                  isDestructive: true,
-                );
-                if (confirm && context.mounted) {
-                  await authProvider.logout();
-                  if (context.mounted) {
-                    context.go('/login');
+            // Log In / Log Out Action Button
+            if (user == null)
+              AppButton(
+                text: 'Log In / Sign In',
+                icon: Icons.login_rounded,
+                onPressed: () => context.push('/login'),
+              )
+            else
+              AppButton(
+                text: 'Log Out',
+                variant: AppButtonVariant.outlined,
+                icon: Icons.logout_rounded,
+                onPressed: () async {
+                  final confirm = await ConfirmationDialog.show(
+                    context,
+                    title: 'Sign Out?',
+                    message: 'Are you sure you want to sign out of EventEase?',
+                    confirmLabel: 'Sign Out',
+                    isDestructive: true,
+                  );
+                  if (confirm && context.mounted) {
+                    await authProvider.logout();
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
                   }
-                }
-              },
-            ),
+                },
+              ),
             const SizedBox(height: 30),
           ],
         ),

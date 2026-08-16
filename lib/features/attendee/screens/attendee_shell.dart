@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/modern_navigation_bar.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
 
 class AttendeeShell extends StatelessWidget {

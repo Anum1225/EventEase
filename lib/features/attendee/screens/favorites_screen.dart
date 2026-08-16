@@ -23,8 +23,10 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final _eventRepo = EventRepository();
-  List<EventModel> _favoriteEvents = [];
+  final List<EventModel> _cachedEvents = [];
   bool _isLoading = true;
+  bool _isFetching = false;
+  String? _loadedUserId;
 
   @override
   void initState() {
@@ -37,11 +39,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _loadFavorites() async {
+    if (_isFetching) return;
+    _isFetching = true;
+
     final user = context.read<AuthProvider>().currentUser;
     if (user == null) {
       if (mounted) {
         setState(() {
+          _cachedEvents.clear();
           _isLoading = false;
+          _isFetching = false;
         });
       }
       return;
@@ -50,13 +57,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final regProvider = context.read<RegistrationProvider>();
     await regProvider.loadUserData(user.id);
 
-    final Set<String> favIds = {...regProvider.favoriteEventIds};
-    for (final r in regProvider.registrations) {
-      if (r.isRegistered) {
-        favIds.add(r.eventId);
-      }
-    }
-
+    final Set<String> favIds = regProvider.favoriteEventIds;
     final List<EventModel> loaded = [];
 
     for (final id in favIds) {
@@ -66,9 +67,43 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     if (mounted) {
       setState(() {
-        _favoriteEvents = loaded;
+        _cachedEvents.clear();
+        _cachedEvents.addAll(loaded);
+        _loadedUserId = user.id;
         _isLoading = false;
+        _isFetching = false;
       });
+    } else {
+      _isFetching = false;
+    }
+  }
+
+  void _syncMissingFavorites(RegistrationProvider regProvider, String userId) {
+    if (_loadedUserId != userId) {
+      _loadFavorites();
+      return;
+    }
+    final existingIds = _cachedEvents.map((e) => e.id).toSet();
+    final missingIds = regProvider.favoriteEventIds.difference(existingIds);
+    if (missingIds.isNotEmpty && !_isFetching) {
+      _fetchMissingEvents(missingIds);
+    }
+  }
+
+  Future<void> _fetchMissingEvents(Set<String> missingIds) async {
+    _isFetching = true;
+    final List<EventModel> newItems = [];
+    for (final id in missingIds) {
+      final ev = await _eventRepo.getEventById(id);
+      if (ev != null) newItems.add(ev);
+    }
+    if (mounted) {
+      setState(() {
+        _cachedEvents.addAll(newItems);
+        _isFetching = false;
+      });
+    } else {
+      _isFetching = false;
     }
   }
 
@@ -79,6 +114,32 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final authProvider = context.watch<AuthProvider>();
     final regProvider = context.watch<RegistrationProvider>();
+    final user = authProvider.currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Saved Events',
+            style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+        ),
+        body: EmptyStateView(
+          icon: Icons.lock_outline_rounded,
+          title: 'Sign In Required',
+          message: 'Please log in to save your favorite events and sync them across devices.',
+          actionLabel: 'Sign In Now',
+          onAction: () => context.push('/login?reason=${Uri.encodeComponent('Saved Events')}'),
+        ),
+      );
+    }
+
+    _syncMissingFavorites(regProvider, user.id);
+
+    // Filter displayed events strictly to active favoriteEventIds
+    final displayedEvents = _cachedEvents
+        .where((e) => regProvider.isEventFavorited(e.id))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -92,19 +153,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               padding: EdgeInsets.all(20),
               child: EventListSkeleton(itemCount: 2),
             )
-          : _favoriteEvents.isEmpty
+          : displayedEvents.isEmpty
               ? EmptyStateView(
                   icon: Icons.favorite_border_rounded,
                   title: 'No Saved Events Yet',
-                  message: 'Bookmark interesting events while browsing to quickly access them later.',
+                  message: 'Bookmark interesting events while browsing by tapping the heart icon to quickly access them later.',
                   actionLabel: 'Discover Events',
                   onAction: () => context.go('/attendee'),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(20),
-                  itemCount: _favoriteEvents.length,
+                  itemCount: displayedEvents.length,
                   itemBuilder: (context, index) {
-                    final event = _favoriteEvents[index];
+                    final event = displayedEvents[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: AppCard(
@@ -158,16 +219,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             IconButton(
                               icon: const Icon(Icons.favorite_rounded, color: Color(0xFFFF4B6E), size: 22),
                               onPressed: () async {
-                                if (authProvider.currentUser != null) {
-                                  await regProvider.toggleFavorite(
-                                    userId: authProvider.currentUser!.id,
-                                    eventId: event.id,
+                                await regProvider.toggleFavorite(
+                                  userId: user.id,
+                                  eventId: event.id,
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Removed from Saved Events'),
+                                      duration: Duration(seconds: 2),
+                                    ),
                                   );
-                                  if (mounted) {
-                                    setState(() {
-                                      _favoriteEvents.removeWhere((e) => e.id == event.id);
-                                    });
-                                  }
                                 }
                               },
                             ),

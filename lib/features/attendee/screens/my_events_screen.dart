@@ -52,6 +52,24 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.currentUser;
 
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'My Registered Events',
+            style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+        ),
+        body: EmptyStateView(
+          icon: Icons.lock_outline_rounded,
+          title: 'Sign In Required',
+          message: 'Please log in to view your registered events, access your digital entry passes, and manage tickets.',
+          actionLabel: 'Sign In Now',
+          onAction: () => context.push('/login?reason=${Uri.encodeComponent('My Events')}'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(

@@ -124,21 +124,23 @@ class UserRepository {
   Future<List<UserModel>> getAllUsers({String? role, String? query}) async {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _usersCol != null) {
       try {
-        Query<Map<String, dynamic>> q = _usersCol!.orderBy('createdAt', descending: true);
-        if (role != null && role.isNotEmpty) {
-          q = q.where('role', isEqualTo: role);
+        final snap = await _usersCol!.get();
+        var users = snap.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
+
+        if (role != null && role.isNotEmpty && role.toLowerCase() != 'all') {
+          users = users.where((u) => u.role.toLowerCase() == role.toLowerCase()).toList();
         }
-        final snap = await q.get();
-        if (snap.docs.isNotEmpty) {
-          final users = snap.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
-          if (query != null && query.trim().isNotEmpty) {
-            final qLower = query.trim().toLowerCase();
-            return users.where((u) =>
-                u.name.toLowerCase().contains(qLower) ||
-                u.email.toLowerCase().contains(qLower)).toList();
-          }
-          return users;
+
+        if (query != null && query.trim().isNotEmpty) {
+          final qLower = query.trim().toLowerCase();
+          users = users.where((u) =>
+              u.name.toLowerCase().contains(qLower) ||
+              u.email.toLowerCase().contains(qLower) ||
+              (u.phone != null && u.phone!.toLowerCase().contains(qLower))).toList();
         }
+
+        users.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return users;
       } catch (_) {}
     }
     return _localStore.getAllUsers(role: role, query: query);
@@ -148,12 +150,11 @@ class UserRepository {
   Future<List<UserModel>> getPendingOrganizers() async {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _usersCol != null) {
       try {
-        final snap = await _usersCol!
-            .where('role', isEqualTo: AppConstants.roleOrganizerPending)
-            .get();
-        if (snap.docs.isNotEmpty) {
-          return snap.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
-        }
+        final snap = await _usersCol!.get();
+        return snap.docs
+            .map((doc) => UserModel.fromFirestore(doc))
+            .where((u) => u.role == AppConstants.roleOrganizerPending)
+            .toList();
       } catch (_) {}
     }
     return _localStore.getPendingOrganizers();

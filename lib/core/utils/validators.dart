@@ -11,11 +11,11 @@ class Validators {
 
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
+      return 'Email address is required';
     }
     final emailRegex = RegExp(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$');
     if (!emailRegex.hasMatch(value.trim())) {
-      return 'Please enter a valid email address';
+      return 'Please enter a valid email address (e.g. name@domain.com)';
     }
     return null;
   }
@@ -41,12 +41,16 @@ class Validators {
   }
 
   static String? phone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null; // Phone is optional in registration unless specified
+    if (value == null || value.trim().isEmpty || value.trim() == '+92') {
+      return null; // Phone is optional unless entered
     }
-    final cleanPhone = value.replaceAll(RegExp(r'[\s\-\(\)\+]'), '');
-    if (cleanPhone.length < 7 || cleanPhone.length > 15 || !RegExp(r'^\d+$').hasMatch(cleanPhone)) {
-      return 'Please enter a valid phone number';
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    final isValidPakistani = (digits.length == 12 && digits.startsWith('923')) ||
+        (digits.length == 11 && digits.startsWith('03')) ||
+        (digits.length == 10 && digits.startsWith('3'));
+
+    if (!isValidPakistani) {
+      return 'Only valid Pakistani phone numbers allowed (e.g. +92 300 1234567)';
     }
     return null;
   }

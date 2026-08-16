@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/event_model.dart';
 import '../repositories/event_repository.dart';
@@ -144,6 +145,7 @@ class EventProvider with ChangeNotifier {
   Future<bool> createEvent({
     required EventModel event,
     File? bannerImageFile,
+    Uint8List? bannerImageBytes,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -151,10 +153,11 @@ class EventProvider with ChangeNotifier {
 
     try {
       String? imageUrl = event.imageUrl;
-      if (bannerImageFile != null) {
+      if (bannerImageBytes != null || bannerImageFile != null) {
         imageUrl = await _storageService.uploadEventBanner(
           organizerId: event.organizerId,
           imageFile: bannerImageFile,
+          imageBytes: bannerImageBytes,
         );
       }
 
@@ -177,6 +180,7 @@ class EventProvider with ChangeNotifier {
   Future<bool> updateEvent({
     required EventModel event,
     File? newBannerImageFile,
+    Uint8List? newBannerImageBytes,
     bool isMaterialChange = false,
   }) async {
     _isLoading = true;
@@ -185,10 +189,11 @@ class EventProvider with ChangeNotifier {
 
     try {
       String? imageUrl = event.imageUrl;
-      if (newBannerImageFile != null) {
+      if (newBannerImageBytes != null || newBannerImageFile != null) {
         imageUrl = await _storageService.uploadEventBanner(
           organizerId: event.organizerId,
           imageFile: newBannerImageFile,
+          imageBytes: newBannerImageBytes,
         );
       }
 

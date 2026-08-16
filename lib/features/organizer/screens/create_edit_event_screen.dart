@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -44,6 +46,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
   TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 16, minute: 0);
   File? _pickedBannerFile;
+  Uint8List? _pickedBannerBytes;
   String? _existingBannerUrl;
 
   EventModel? _existingEvent;
@@ -131,8 +134,12 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
   Future<void> _pickBanner() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null) {
+      final bytes = await picked.readAsBytes();
       setState(() {
-        _pickedBannerFile = File(picked.path);
+        _pickedBannerBytes = bytes;
+        if (!kIsWeb) {
+          _pickedBannerFile = File(picked.path);
+        }
       });
     }
   }
@@ -171,6 +178,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
       final success = await eventProvider.updateEvent(
         event: updated,
         newBannerImageFile: _pickedBannerFile,
+        newBannerImageBytes: _pickedBannerBytes,
         isMaterialChange: isMaterial,
       );
 
@@ -209,6 +217,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
       final success = await eventProvider.createEvent(
         event: newEvent,
         bannerImageFile: _pickedBannerFile,
+        bannerImageBytes: _pickedBannerBytes,
       );
 
       if (success && mounted) {
@@ -262,43 +271,48 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                       width: 1.2,
                     ),
                   ),
-                  child: _pickedBannerFile != null
+                  child: _pickedBannerBytes != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: Image.file(_pickedBannerFile!, fit: BoxFit.cover),
+                          child: Image.memory(_pickedBannerBytes!, fit: BoxFit.cover),
                         )
-                      : (_existingBannerUrl != null && _existingBannerUrl!.isNotEmpty)
-                          ? AppNetworkImage(
-                              imageUrl: _existingBannerUrl!,
-                              fit: BoxFit.cover,
+                      : (_pickedBannerFile != null && !kIsWeb)
+                          ? ClipRRect(
                               borderRadius: BorderRadius.circular(16),
+                              child: Image.file(_pickedBannerFile!, fit: BoxFit.cover),
                             )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_photo_alternate_rounded,
-                                  size: 44,
-                                  color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                          : (_existingBannerUrl != null && _existingBannerUrl!.isNotEmpty)
+                              ? AppNetworkImage(
+                                  imageUrl: _existingBannerUrl!,
+                                  fit: BoxFit.cover,
+                                  borderRadius: BorderRadius.circular(16),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      size: 44,
+                                      color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Tap to upload event cover banner',
+                                      style: AppTypography.manrope(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: primaryTextColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Recommended 16:9 ratio (JPEG, PNG)',
+                                      style: AppTypography.manrope(
+                                        fontSize: 12,
+                                        color: secondaryTextColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap to upload event cover banner',
-                                  style: AppTypography.manrope(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: primaryTextColor,
-                                  ),
-                                ),
-                                Text(
-                                  'Recommended 16:9 ratio (JPEG, PNG)',
-                                  style: AppTypography.manrope(
-                                    fontSize: 12,
-                                    color: secondaryTextColor,
-                                  ),
-                                ),
-                              ],
-                            ),
                 ),
               ),
               const SizedBox(height: 20),

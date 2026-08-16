@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
@@ -67,10 +68,14 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
     final user = context.read<AuthProvider>().currentUser;
     if (user == null || _event == null) return;
 
-    if (!_event!.isCompleted) {
+    final canSubmit = _event!.isCompleted ||
+        _event!.status == AppConstants.eventStatusApproved ||
+        _event!.date.isBefore(DateTime.now());
+
+    if (!canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Feedback can only be submitted after the event has completed.'),
+          content: Text('Feedback is unavailable for this event.'),
           backgroundColor: AppColors.lightError,
         ),
       );
@@ -111,6 +116,11 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
       return const Scaffold(body: LoadingView(message: 'Loading feedback form...'));
     }
 
+    final canSubmit = _event != null &&
+        (_event!.isCompleted ||
+            _event!.status == AppConstants.eventStatusApproved ||
+            _event!.date.isBefore(DateTime.now()));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Event Feedback'),
@@ -146,7 +156,7 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
                       ],
                     ),
                   )
-                : (_event != null && !_event!.isCompleted)
+                : !canSubmit
                     ? AppCard(
                         padding: const EdgeInsets.all(28),
                         child: Column(

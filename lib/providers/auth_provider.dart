@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../firebase_options.dart';
@@ -139,22 +140,27 @@ class AuthProvider with ChangeNotifier {
   Future<void> refreshUser([String? uid]) async {
     final targetUid = uid ?? _currentUser?.id ?? _authService.currentUser?.uid;
     if (targetUid == null) {
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
+      if (_currentUser == null) {
+        _status = AuthStatus.unauthenticated;
+        notifyListeners();
+      }
       return;
     }
 
     try {
       final user = await _userRepository.getUser(targetUid);
-      _currentUser = user;
-      _status = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
       if (user != null) {
+        _currentUser = user;
+        _status = AuthStatus.authenticated;
         await _saveSession(user);
         _notificationService.initialize(user.id);
+      } else if (_currentUser == null) {
+        _status = AuthStatus.unauthenticated;
       }
     } catch (e) {
-      _currentUser = null;
-      _status = AuthStatus.unauthenticated;
+      if (_currentUser == null) {
+        _status = AuthStatus.unauthenticated;
+      }
     }
     notifyListeners();
   }
@@ -255,6 +261,7 @@ class AuthProvider with ChangeNotifier {
     required String name,
     String? phone,
     File? newProfileImageFile,
+    Uint8List? newProfileImageBytes,
   }) async {
     if (_currentUser == null) return false;
     _setLoading(true);
@@ -262,10 +269,11 @@ class AuthProvider with ChangeNotifier {
 
     try {
       String? imageUrl = _currentUser!.profileImage;
-      if (newProfileImageFile != null) {
+      if (newProfileImageBytes != null || newProfileImageFile != null) {
         imageUrl = await _storageService.uploadProfileImage(
           userId: _currentUser!.id,
           imageFile: newProfileImageFile,
+          imageBytes: newProfileImageBytes,
         );
       }
 

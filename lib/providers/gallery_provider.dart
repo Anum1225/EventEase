@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/gallery_model.dart';
 import '../repositories/gallery_repository.dart';
@@ -49,7 +50,8 @@ class GalleryProvider with ChangeNotifier {
     required String eventId,
     required String uploadedBy,
     String? uploaderName,
-    required File imageFile,
+    File? imageFile,
+    Uint8List? imageBytes,
     String? caption,
   }) async {
     _isUploading = true;
@@ -60,6 +62,8 @@ class GalleryProvider with ChangeNotifier {
       final imageUrl = await _storageService.uploadGalleryImage(
         eventId: eventId,
         imageFile: imageFile,
+        imageBytes: imageBytes,
+        uploaderId: uploadedBy,
       );
 
       await _galleryRepository.uploadPhoto(

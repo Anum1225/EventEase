@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,6 +31,7 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
   final _captionController = TextEditingController();
   String? _selectedEventId;
   File? _pickedPhoto;
+  Uint8List? _pickedPhotoBytes;
 
   @override
   void initState() {
@@ -69,7 +72,13 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null) {
-      setState(() => _pickedPhoto = File(picked.path));
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _pickedPhotoBytes = bytes;
+        if (!kIsWeb) {
+          _pickedPhoto = File(picked.path);
+        }
+      });
     }
   }
 
@@ -77,7 +86,7 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
     final events = context.read<EventProvider>().organizerEvents;
     final effectiveId = _getEffectiveEventId(events);
 
-    if (_pickedPhoto == null || effectiveId == null) {
+    if ((_pickedPhotoBytes == null && _pickedPhoto == null) || effectiveId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an event and pick a photo.')),
       );
@@ -92,13 +101,15 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
       eventId: effectiveId,
       uploadedBy: user.id,
       uploaderName: user.name,
-      imageFile: _pickedPhoto!,
+      imageFile: _pickedPhoto,
+      imageBytes: _pickedPhotoBytes,
       caption: _captionController.text.trim().isNotEmpty ? _captionController.text.trim() : null,
     );
 
     if (success && mounted) {
       setState(() {
         _pickedPhoto = null;
+        _pickedPhotoBytes = null;
         _captionController.clear();
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,26 +179,31 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: isDark ? AppColors.darkDivider : AppColors.lightDivider),
                       ),
-                      child: _pickedPhoto != null
+                      child: _pickedPhotoBytes != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.file(_pickedPhoto!, fit: BoxFit.cover),
+                              child: Image.memory(_pickedPhotoBytes!, fit: BoxFit.cover),
                             )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_a_photo_rounded,
-                                  size: 40,
-                                  color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                          : (_pickedPhoto != null && !kIsWeb)
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(_pickedPhoto!, fit: BoxFit.cover),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_a_photo_rounded,
+                                      size: 40,
+                                      color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Tap to choose memory photo',
+                                      style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Tap to choose memory photo',
-                                  style: AppTypography.manrope(fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
                     ),
                   ),
                   const SizedBox(height: 14),

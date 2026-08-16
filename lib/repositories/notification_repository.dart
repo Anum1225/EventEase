@@ -47,9 +47,10 @@ class NotificationRepository {
       try {
         final snap = await _notifCol!
             .where('userId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
             .get();
-        return snap.docs.map((d) => NotificationModel.fromFirestore(d)).toList();
+        var list = snap.docs.map((d) => NotificationModel.fromFirestore(d)).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
       } catch (_) {}
     }
     return _localStore.getUserNotifications(userId);

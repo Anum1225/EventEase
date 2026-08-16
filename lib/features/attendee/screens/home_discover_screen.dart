@@ -188,8 +188,10 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
 
                   ElevatedButton(
                     onPressed: () {
+                      final locText = locationController.text.trim();
+                      final finalLocation = locText.isNotEmpty ? locText : null;
                       eventProvider.setDateFilter(tempDate);
-                      eventProvider.setLocationFilter(tempLocation);
+                      eventProvider.setLocationFilter(finalLocation);
                       eventProvider.toggleOnlyAvailable(tempOnlyAvailable);
                       Navigator.pop(ctx);
                     },
@@ -214,7 +216,7 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
     final user = authProvider.currentUser;
     final userName = user != null && user.name.trim().isNotEmpty
         ? user.name.trim().split(" ").first
-        : "Attendee";
+        : "Guest";
 
     return Scaffold(
       body: SafeArea(
@@ -501,6 +503,16 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
                             userId: authProvider.currentUser!.id,
                             eventId: event.id,
                           );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isFav ? 'Removed from Saved Events' : 'Saved to Favorites! ❤️',
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        } else {
+                          context.push('/login?reason=${Uri.encodeComponent('Saved Events')}');
                         }
                       },
                       tooltip: 'Save Event',

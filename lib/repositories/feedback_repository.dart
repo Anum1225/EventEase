@@ -105,9 +105,10 @@ class FeedbackRepository {
       try {
         final snap = await _feedbackCol!
             .where('eventId', isEqualTo: eventId)
-            .orderBy('submittedAt', descending: true)
             .get();
-        return snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+        var list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+        list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+        return list;
       } catch (_) {}
     }
     return _localStore.getEventFeedback(eventId);
