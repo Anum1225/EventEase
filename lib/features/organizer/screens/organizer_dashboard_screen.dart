@@ -27,6 +27,9 @@ class OrganizerDashboardScreen extends StatefulWidget {
 }
 
 class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
+  final _searchController = TextEditingController();
+  String _selectedStatusFilter = 'all';
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +39,12 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
         context.read<EventProvider>().loadOrganizerEvents(user.id);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _showCancelEventDialog(BuildContext context, EventModel event) {
@@ -118,11 +127,22 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
     final authProvider = context.watch<AuthProvider>();
     final eventProvider = context.watch<EventProvider>();
     final user = authProvider.currentUser;
-    final events = eventProvider.organizerEvents;
+    final allEvents = eventProvider.organizerEvents;
+    var filteredEvents = allEvents;
+    if (_selectedStatusFilter != 'all') {
+      filteredEvents = filteredEvents.where((e) => e.status == _selectedStatusFilter).toList();
+    }
+    if (_searchController.text.trim().isNotEmpty) {
+      final q = _searchController.text.trim().toLowerCase();
+      filteredEvents = filteredEvents.where((e) =>
+        e.title.toLowerCase().contains(q) ||
+        e.category.toLowerCase().contains(q) ||
+        e.location.toLowerCase().contains(q)).toList();
+    }
 
-    final totalRegistrations = events.fold<int>(0, (sum, ev) => sum + ev.registeredCount);
-    final approvedEventsCount = events.where((e) => e.isApproved).length;
-    final pendingCount = events.where((e) => e.isPending).length;
+    final totalRegistrations = allEvents.fold<int>(0, (sum, ev) => sum + ev.registeredCount);
+    final approvedEventsCount = allEvents.where((e) => e.isApproved).length;
+    final pendingCount = allEvents.where((e) => e.isPending).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -247,7 +267,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               const SizedBox(height: 20),
 
               // Animated Bar Chart of Event Demand
-              if (events.isNotEmpty) ...[
+              if (allEvents.isNotEmpty) ...[
                 AppCard(
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
                   child: Column(
@@ -263,7 +283,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                       ),
                       const SizedBox(height: 14),
                       ModernAnimatedBarChart(
-                        data: events.map((ev) {
+                        data: allEvents.map((ev) {
                           return BarChartDataPoint(
                             label: ev.title.length > 8 ? '${ev.title.substring(0, 7)}..' : ev.title,
                             value: ev.registeredCount.toDouble(),
@@ -293,7 +313,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Your Created Events (${events.length})',
+                    'Your Created Events (${filteredEvents.length})',
                     style: AppTypography.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -302,20 +322,87 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              if (eventProvider.isLoading && events.isEmpty)
+              // Search Bar & Filter Chips
+              TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Search my events by title, venue...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 16),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('All Statuses'),
+                      selected: _selectedStatusFilter == 'all',
+                      onSelected: (_) => setState(() => _selectedStatusFilter = 'all'),
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: const Text('Approved'),
+                      selected: _selectedStatusFilter == 'approved',
+                      onSelected: (_) => setState(() => _selectedStatusFilter = 'approved'),
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: const Text('Pending Review'),
+                      selected: _selectedStatusFilter == 'pending_approval',
+                      onSelected: (_) => setState(() => _selectedStatusFilter = 'pending_approval'),
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: const Text('Completed'),
+                      selected: _selectedStatusFilter == 'completed',
+                      onSelected: (_) => setState(() => _selectedStatusFilter = 'completed'),
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: const Text('Cancelled'),
+                      selected: _selectedStatusFilter == 'cancelled',
+                      onSelected: (_) => setState(() => _selectedStatusFilter = 'cancelled'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              if (eventProvider.isLoading && allEvents.isEmpty)
                 const EventListSkeleton(itemCount: 2)
-              else if (events.isEmpty)
+              else if (filteredEvents.isEmpty)
                 EmptyStateView(
                   icon: Icons.event_note_rounded,
-                  title: 'No Events Hosted Yet',
-                  message: 'Start by creating your first event to welcome attendees.',
-                  actionLabel: 'Create Event Now',
-                  onAction: () => context.push('/organizer/create-event'),
+                  title: 'No Events Found',
+                  message: allEvents.isEmpty
+                      ? 'Start by creating your first event to welcome attendees.'
+                      : 'No events match your current search/status filter.',
+                  actionLabel: allEvents.isEmpty ? 'Create Event Now' : 'Reset Filters',
+                  onAction: allEvents.isEmpty
+                      ? () => context.push('/organizer/create-event')
+                      : () {
+                          _searchController.clear();
+                          setState(() => _selectedStatusFilter = 'all');
+                        },
                 )
               else
-                ...events.map((event) {
+                ...filteredEvents.map((event) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: AppCard(
