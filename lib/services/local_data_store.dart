@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_constants.dart';
 import '../models/user_model.dart';
@@ -43,9 +47,17 @@ class LocalDataStore {
       _notificationsStreamController.stream;
 
   bool _initialized = false;
+  bool _diskLoaded = false;
 
   LocalDataStore._internal() {
     _initializeData();
+  }
+
+  Future<void> init() async {
+    _initializeData();
+    if (!_diskLoaded) {
+      await _loadFromDisk();
+    }
   }
 
   void _initializeData() {
@@ -501,6 +513,227 @@ class LocalDataStore {
     }
   }
 
+  static bool enableDiskPersistence = true;
+
+  Future<SharedPreferences?> _getSafePrefs() async {
+    if (!enableDiskPersistence) return null;
+    try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return null;
+      }
+      return await SharedPreferences.getInstance();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _loadFromDisk() async {
+    try {
+      final prefs = await _getSafePrefs();
+      if (prefs == null) return;
+      _diskLoaded = true;
+
+      // 1. Passwords
+      final passwordsJson = prefs.getString('local_passwords');
+      if (passwordsJson != null) {
+        final Map<String, dynamic> map = jsonDecode(passwordsJson);
+        map.forEach((k, v) => _passwords[k.toLowerCase()] = v.toString());
+      }
+
+      // 2. Users
+      final usersJson = prefs.getString('local_users');
+      if (usersJson != null) {
+        final List<dynamic> list = jsonDecode(usersJson);
+        for (final item in list) {
+          final u = UserModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _users[u.id] = u;
+        }
+      }
+
+      // 3. Events
+      final eventsJson = prefs.getString('local_events');
+      if (eventsJson != null) {
+        final List<dynamic> list = jsonDecode(eventsJson);
+        for (final item in list) {
+          final e = EventModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _events[e.id] = e;
+        }
+      }
+
+      // 4. Registrations
+      final regsJson = prefs.getString('local_registrations');
+      if (regsJson != null) {
+        final List<dynamic> list = jsonDecode(regsJson);
+        for (final item in list) {
+          final r = RegistrationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _registrations[r.id] = r;
+        }
+      }
+
+      // 5. Favorites
+      final favsJson = prefs.getString('local_favorites');
+      if (favsJson != null) {
+        final List<dynamic> list = jsonDecode(favsJson);
+        for (final item in list) {
+          final f = FavoriteModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _favorites[f.id] = f;
+        }
+      }
+
+      // 6. Attendance
+      final attJson = prefs.getString('local_attendance');
+      if (attJson != null) {
+        final List<dynamic> list = jsonDecode(attJson);
+        for (final item in list) {
+          final a = AttendanceModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _attendance[a.id] = a;
+        }
+      }
+
+      // 7. Feedback
+      final fbJson = prefs.getString('local_feedback');
+      if (fbJson != null) {
+        final List<dynamic> list = jsonDecode(fbJson);
+        for (final item in list) {
+          final fb = FeedbackModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _feedbacks[fb.id] = fb;
+        }
+      }
+
+      // 8. Notifications
+      final notifJson = prefs.getString('local_notifications');
+      if (notifJson != null) {
+        final List<dynamic> list = jsonDecode(notifJson);
+        for (final item in list) {
+          final n = NotificationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _notifications[n.id] = n;
+        }
+      }
+    } catch (e) {
+      debugPrint('LocalDataStore loadFromDisk note: $e');
+    }
+  }
+
+  Future<void> _saveToDisk() async {
+    try {
+      final prefs = await _getSafePrefs();
+      if (prefs == null) return;
+
+      // Passwords
+      await prefs.setString('local_passwords', jsonEncode(_passwords));
+
+      // Users
+      final usersList = _users.values.map((u) => {
+        'id': u.id,
+        'name': u.name,
+        'email': u.email,
+        'phone': u.phone,
+        'role': u.role,
+        'organizerApprovalStatus': u.organizerApprovalStatus,
+        'organizerApprovalReason': u.organizerApprovalReason,
+        'profileImage': u.profileImage,
+        'status': u.status,
+        'createdAt': u.createdAt.toIso8601String(),
+        'fcmToken': u.fcmToken,
+        'notificationPreferences': u.notificationPreferences,
+      }).toList();
+      await prefs.setString('local_users', jsonEncode(usersList));
+
+      // Events
+      final eventsList = _events.values.map((e) => {
+        'id': e.id,
+        'organizerId': e.organizerId,
+        'organizerName': e.organizerName,
+        'organizerEmail': e.organizerEmail,
+        'title': e.title,
+        'description': e.description,
+        'category': e.category,
+        'date': e.date.toIso8601String(),
+        'startTime': e.startTime,
+        'endTime': e.endTime,
+        'location': e.location,
+        'maxParticipants': e.maxParticipants,
+        'registeredCount': e.registeredCount,
+        'status': e.status,
+        'rejectionReason': e.rejectionReason,
+        'cancellationReason': e.cancellationReason,
+        'rules': e.rules,
+        'contactInfo': e.contactInfo,
+        'imageUrl': e.imageUrl,
+        'createdAt': e.createdAt.toIso8601String(),
+      }).toList();
+      await prefs.setString('local_events', jsonEncode(eventsList));
+
+      // Registrations
+      final regsList = _registrations.values.map((r) => {
+        'id': r.id,
+        'eventId': r.eventId,
+        'userId': r.userId,
+        'eventTitle': r.eventTitle,
+        'eventDate': r.eventDate?.toIso8601String(),
+        'eventLocation': r.eventLocation,
+        'eventBanner': r.eventBanner,
+        'eventCategory': r.eventCategory,
+        'userName': r.userName,
+        'userEmail': r.userEmail,
+        'registeredAt': r.registeredAt.toIso8601String(),
+        'status': r.status,
+        'qrCode': r.qrCode,
+      }).toList();
+      await prefs.setString('local_registrations', jsonEncode(regsList));
+
+      // Favorites
+      final favsList = _favorites.values.map((f) => {
+        'id': f.id,
+        'userId': f.userId,
+        'eventId': f.eventId,
+        'createdAt': f.createdAt.toIso8601String(),
+      }).toList();
+      await prefs.setString('local_favorites', jsonEncode(favsList));
+
+      // Attendance
+      final attList = _attendance.values.map((a) => {
+        'id': a.id,
+        'registrationId': a.registrationId,
+        'eventId': a.eventId,
+        'userId': a.userId,
+        'userName': a.userName,
+        'userEmail': a.userEmail,
+        'attended': a.attended,
+        'checkedInAt': a.checkedInAt.toIso8601String(),
+        'checkedInBy': a.checkedInBy,
+      }).toList();
+      await prefs.setString('local_attendance', jsonEncode(attList));
+
+      // Feedback
+      final fbList = _feedbacks.values.map((f) => {
+        'id': f.id,
+        'eventId': f.eventId,
+        'userId': f.userId,
+        'userName': f.userName,
+        'rating': f.rating,
+        'comment': f.comment,
+        'submittedAt': f.submittedAt.toIso8601String(),
+      }).toList();
+      await prefs.setString('local_feedback', jsonEncode(fbList));
+
+      // Notifications
+      final notifList = _notifications.values.map((n) => {
+        'id': n.id,
+        'userId': n.userId,
+        'title': n.title,
+        'message': n.message,
+        'type': n.type,
+        'eventId': n.eventId,
+        'createdAt': n.createdAt.toIso8601String(),
+        'isRead': n.isRead,
+      }).toList();
+      await prefs.setString('local_notifications', jsonEncode(notifList));
+    } catch (e) {
+      debugPrint('LocalDataStore saveToDisk error: $e');
+    }
+  }
+
   // =========================================================================
   // AUTH METHODS
   // =========================================================================
@@ -512,18 +745,24 @@ class LocalDataStore {
       orElse: () => throw Exception('No account found with this email address.'),
     );
 
-    // Verify password with support for standard demo passwords & custom user passwords
+    // Verify password with support for updated passwords & standard demo passwords
     final expectedPass = _passwords[cleanEmail];
-    final isDemoPass = password == 'AdminPass123!' ||
-        password == 'AdminPass2026!' ||
-        password == 'OrganizerPass123!' ||
-        password == 'HostPass2026!' ||
-        password == 'AttendeePass123!' ||
-        password == 'AttendeePass2026!' ||
-        password == 'Password123!';
+    if (expectedPass != null) {
+      if (expectedPass != password) {
+        throw Exception('Invalid email or password.');
+      }
+    } else {
+      final isDemoPass = password == 'AdminPass123!' ||
+          password == 'AdminPass2026!' ||
+          password == 'OrganizerPass123!' ||
+          password == 'HostPass2026!' ||
+          password == 'AttendeePass123!' ||
+          password == 'AttendeePass2026!' ||
+          password == 'Password123!';
 
-    if (expectedPass != null && expectedPass != password && !isDemoPass) {
-      throw Exception('Incorrect password. Please verify and try again.');
+      if (!isDemoPass) {
+        throw Exception('Invalid email or password.');
+      }
     }
 
     if (user.status == AppConstants.userStatusDeactivated) {
@@ -531,6 +770,42 @@ class LocalDataStore {
     }
 
     return user;
+  }
+
+  void changePassword(String email, String currentPassword, String newPassword) {
+    final cleanEmail = email.trim().toLowerCase();
+    final user = _users.values.firstWhere(
+      (u) => u.email.toLowerCase() == cleanEmail,
+      orElse: () => throw Exception('No account found with this email address.'),
+    );
+
+    if (user.status == AppConstants.userStatusDeactivated) {
+      throw Exception('Your account has been deactivated by an administrator.');
+    }
+
+    final expectedPass = _passwords[cleanEmail];
+    final isDemoPass = currentPassword == 'AdminPass123!' ||
+        currentPassword == 'AdminPass2026!' ||
+        currentPassword == 'OrganizerPass123!' ||
+        currentPassword == 'HostPass2026!' ||
+        currentPassword == 'AttendeePass123!' ||
+        currentPassword == 'AttendeePass2026!' ||
+        currentPassword == 'Password123!';
+
+    if (expectedPass != null) {
+      if (expectedPass != currentPassword) {
+        throw Exception('Current password is incorrect.');
+      }
+    } else if (!isDemoPass) {
+      throw Exception('Current password is incorrect.');
+    }
+
+    if (newPassword.length < 6) {
+      throw Exception('New password must be at least 6 characters long.');
+    }
+
+    _passwords[cleanEmail] = newPassword;
+    _saveToDisk();
   }
 
   UserModel registerUser({
@@ -564,6 +839,7 @@ class LocalDataStore {
 
     _users[id] = newUser;
     _passwords[cleanEmail] = password;
+    _saveToDisk();
     return newUser;
   }
 
@@ -590,6 +866,7 @@ class LocalDataStore {
 
   void updateUser(UserModel user) {
     _users[user.id] = user;
+    _saveToDisk();
   }
 
   void approveOrganizer(String userId) {
@@ -599,6 +876,7 @@ class LocalDataStore {
         role: AppConstants.roleOrganizer,
         organizerApprovalStatus: 'approved',
       );
+      _saveToDisk();
     }
   }
 
@@ -610,6 +888,7 @@ class LocalDataStore {
         organizerApprovalStatus: 'rejected',
         organizerApprovalReason: reason,
       );
+      _saveToDisk();
     }
   }
 
@@ -619,6 +898,7 @@ class LocalDataStore {
       _users[userId] = user.copyWith(
         status: deactivate ? AppConstants.userStatusDeactivated : AppConstants.userStatusActive,
       );
+      _saveToDisk();
     }
   }
 
@@ -667,11 +947,13 @@ class LocalDataStore {
     final saved = event.copyWith(id: id);
     _events[id] = saved;
     _eventsStreamController.add(_events.values.toList());
+    _saveToDisk();
   }
 
   void updateEvent(EventModel event) {
     _events[event.id] = event;
     _eventsStreamController.add(_events.values.toList());
+    _saveToDisk();
   }
 
   void approveEvent(String eventId) {
@@ -679,6 +961,7 @@ class LocalDataStore {
     if (ev != null) {
       _events[eventId] = ev.copyWith(status: AppConstants.eventStatusApproved);
       _eventsStreamController.add(_events.values.toList());
+      _saveToDisk();
     }
   }
 
@@ -690,6 +973,7 @@ class LocalDataStore {
         rejectionReason: reason,
       );
       _eventsStreamController.add(_events.values.toList());
+      _saveToDisk();
     }
   }
 
@@ -701,12 +985,14 @@ class LocalDataStore {
         cancellationReason: reason,
       );
       _eventsStreamController.add(_events.values.toList());
+      _saveToDisk();
     }
   }
 
   void deleteEvent(String eventId) {
     _events.remove(eventId);
     _eventsStreamController.add(_events.values.toList());
+    _saveToDisk();
   }
 
   // =========================================================================
@@ -755,6 +1041,15 @@ class LocalDataStore {
     _registrations[regId] = reg;
     _events[eventId] = ev.copyWith(registeredCount: ev.registeredCount + 1);
 
+    // Auto-save to favorites / bookmarks as well so it appears in Saved Events
+    final favKey = '${userId}_$eventId';
+    _favorites[favKey] = FavoriteModel(
+      id: favKey,
+      userId: userId,
+      eventId: eventId,
+      createdAt: DateTime.now(),
+    );
+
     // Create automated confirmation notification
     createNotification(
       userId: userId,
@@ -764,6 +1059,7 @@ class LocalDataStore {
       eventId: eventId,
     );
 
+    _saveToDisk();
     return reg;
   }
 
@@ -775,6 +1071,7 @@ class LocalDataStore {
       if (ev != null && ev.registeredCount > 0) {
         _events[reg.eventId] = ev.copyWith(registeredCount: ev.registeredCount - 1);
       }
+      _saveToDisk();
     }
   }
 
@@ -840,6 +1137,7 @@ class LocalDataStore {
     );
 
     _attendance[attId] = att;
+    _saveToDisk();
     return att;
   }
 
@@ -880,6 +1178,7 @@ class LocalDataStore {
         createdAt: DateTime.now(),
       );
     }
+    _saveToDisk();
   }
 
   // =========================================================================
@@ -906,6 +1205,7 @@ class LocalDataStore {
     );
     _notifications[id] = notif;
     _notificationsStreamController.add(getUserNotifications(userId));
+    _saveToDisk();
   }
 
   List<NotificationModel> getUserNotifications(String userId) {
@@ -919,6 +1219,7 @@ class LocalDataStore {
     if (n != null) {
       _notifications[id] = n.copyWith(isRead: true);
       _notificationsStreamController.add(getUserNotifications(n.userId));
+      _saveToDisk();
     }
   }
 
@@ -929,6 +1230,7 @@ class LocalDataStore {
       }
     }
     _notificationsStreamController.add(getUserNotifications(userId));
+    _saveToDisk();
   }
 
   // Broadcast announcement to all registered attendees of an event
@@ -951,6 +1253,7 @@ class LocalDataStore {
         eventId: eventId,
       );
     }
+    _saveToDisk();
     return attendees.length;
   }
 
@@ -976,6 +1279,7 @@ class LocalDataStore {
       submittedAt: DateTime.now(),
     );
     _feedbacks[id] = fb;
+    _saveToDisk();
   }
 
   List<FeedbackModel> getEventFeedback(String eventId) {
@@ -995,6 +1299,7 @@ class LocalDataStore {
 
   void deleteFeedback(String id) {
     _feedbacks.remove(id);
+    _saveToDisk();
   }
 
   double getAverageRating(String eventId) {
@@ -1029,6 +1334,7 @@ class LocalDataStore {
       caption: caption,
       uploadedAt: DateTime.now(),
     );
+    _saveToDisk();
   }
 
   List<GalleryModel> getEventGallery(String eventId) {
@@ -1045,6 +1351,7 @@ class LocalDataStore {
 
   void deleteGalleryPhoto(String id) {
     _galleries.remove(id);
+    _saveToDisk();
   }
 
   // =========================================================================
@@ -1068,6 +1375,7 @@ class LocalDataStore {
       message: message,
       submittedAt: DateTime.now(),
     );
+    _saveToDisk();
   }
 
   // =========================================================================
@@ -1088,5 +1396,6 @@ class LocalDataStore {
     _initialized = false;
     _initializeData();
     _eventsStreamController.add(_events.values.toList());
+    _saveToDisk();
   }
 }

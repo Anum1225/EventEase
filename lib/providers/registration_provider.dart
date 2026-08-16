@@ -76,6 +76,12 @@ class RegistrationProvider with ChangeNotifier {
       final favs = await _favoriteRepository.getUserFavorites(userId);
       _registrations = regs;
       _favoriteEventIds = favs.map((f) => f.eventId).toSet();
+      // Ensure registered events are also included in saved favorites
+      for (final r in regs) {
+        if (r.isRegistered) {
+          _favoriteEventIds.add(r.eventId);
+        }
+      }
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -106,6 +112,7 @@ class RegistrationProvider with ChangeNotifier {
       );
 
       _registrations.insert(0, reg);
+      _favoriteEventIds.add(eventId);
 
       // Trigger Confirmation Notification
       await _notificationRepository.sendNotification(

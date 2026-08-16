@@ -81,66 +81,180 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmPassController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
-        title: Text(
-          'Change Password',
-          style: AppTypography.manrope(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(
-                label: 'Current Password',
-                controller: currentPassController,
-                isPassword: true,
-                validator: Validators.password,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        bool isSubmitting = false;
+        String? localError;
+
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            final isDark = Theme.of(modalContext).brightness == Brightness.dark;
+            final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+            final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+            final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 32,
               ),
-              const SizedBox(height: 12),
-              AppTextField(
-                label: 'New Password',
-                controller: newPassController,
-                isPassword: true,
-                validator: Validators.password,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 12),
-              AppTextField(
-                label: 'Confirm New Password',
-                controller: confirmPassController,
-                isPassword: true,
-                validator: (val) => Validators.confirmPassword(val, newPassController.text),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Drag Handle Bar
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Change Password',
+                        style: AppTypography.manrope(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Enter your current password and choose a new secure password.',
+                        style: AppTypography.manrope(
+                          fontSize: 13,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      if (localError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: (isDark ? AppColors.darkError : AppColors.lightError).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                            border: Border.all(
+                              color: (isDark ? AppColors.darkError : AppColors.lightError).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline_rounded,
+                                size: 18,
+                                color: isDark ? AppColors.darkError : AppColors.lightError,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  localError!,
+                                  style: AppTypography.manrope(
+                                    fontSize: 13,
+                                    color: isDark ? AppColors.darkError : AppColors.lightError,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      AppTextField(
+                        label: 'Current Password',
+                        controller: currentPassController,
+                        isPassword: true,
+                        textInputAction: TextInputAction.next,
+                        validator: Validators.password,
+                      ),
+                      const SizedBox(height: 16),
+                      AppTextField(
+                        label: 'New Password',
+                        controller: newPassController,
+                        isPassword: true,
+                        textInputAction: TextInputAction.next,
+                        validator: Validators.password,
+                      ),
+                      const SizedBox(height: 16),
+                      AppTextField(
+                        label: 'Confirm New Password',
+                        controller: confirmPassController,
+                        isPassword: true,
+                        textInputAction: TextInputAction.done,
+                        validator: (val) => Validators.confirmPassword(val, newPassController.text),
+                      ),
+
+                      // Generous vertical spacing positioning the button down comfortably
+                      const SizedBox(height: 28),
+
+                      AppButton(
+                        text: 'Update Password',
+                        isLoading: isSubmitting,
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                setModalState(() {
+                                  isSubmitting = true;
+                                  localError = null;
+                                });
+
+                                final authProvider = context.read<AuthProvider>();
+                                final success = await authProvider.changePassword(
+                                  currentPassController.text,
+                                  newPassController.text,
+                                );
+
+                                if (modalContext.mounted) {
+                                  if (success) {
+                                    Navigator.pop(modalContext);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Password updated successfully!'),
+                                        backgroundColor: Color(0xFF10B981),
+                                      ),
+                                    );
+                                  } else {
+                                    setModalState(() {
+                                      isSubmitting = false;
+                                      localError = authProvider.errorMessage ?? 'Failed to update password. Please check your current password.';
+                                    });
+                                  }
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 12),
+                      AppButton(
+                        text: 'Cancel',
+                        variant: AppButtonVariant.outlined,
+                        onPressed: () => Navigator.pop(modalContext),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              final authProvider = context.read<AuthProvider>();
-              final success = await authProvider.changePassword(
-                currentPassController.text,
-                newPassController.text,
-              );
-              if (success && ctx.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password changed successfully!')),
-                );
-              }
-            },
-            child: const Text('Update Password'),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 

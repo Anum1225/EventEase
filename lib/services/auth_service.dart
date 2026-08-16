@@ -72,28 +72,8 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final cleanEmail = email.trim().toLowerCase();
-
-    // 1. Fast-path local store verification for seeded and registered accounts (0ms, 0 network errors)
-    final existingLocal = _localStore.getAllUsers().where((u) => u.email.toLowerCase() == cleanEmail);
-    if (existingLocal.isNotEmpty) {
-      try {
-        final localUser = _localStore.authenticateUser(email, password);
-        if (localUser != null) {
-          return localUser;
-        }
-      } catch (e) {
-        if (e.toString().contains('deactivated')) {
-          throw AuthException('Your account has been deactivated by an administrator.');
-        }
-        if (e.toString().contains('Incorrect password')) {
-          throw AuthException('Invalid email or password.');
-        }
-      }
-    }
-
     final auth = _safeAuth;
-    // 2. Try Firebase Authentication if configured and available
+    // 1. Try Firebase Authentication first if configured and available
     if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
       try {
         final credential = await auth.signInWithEmailAndPassword(
@@ -124,24 +104,37 @@ class AuthService {
           return userModel;
         }
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'configuration-not-found' ||
+        if (e.code == 'user-disabled') {
+          throw AuthException('This user account has been disabled.');
+        } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          // Check local store for custom/seed password verification
+          try {
+            final localUser = _localStore.authenticateUser(email, password);
+            if (localUser != null) return localUser;
+          } catch (localErr) {
+            throw AuthException(localErr.toString().replaceAll('Exception: ', ''));
+          }
+          throw AuthException('Invalid email or password.');
+        } else if (e.code == 'user-not-found') {
+          // Check local store for seeded accounts
+          try {
+            final localUser = _localStore.authenticateUser(email, password);
+            if (localUser != null) return localUser;
+          } catch (localErr) {
+            throw AuthException(localErr.toString().replaceAll('Exception: ', ''));
+          }
+          throw AuthException('Invalid email or password.');
+        } else if (e.code == 'configuration-not-found' ||
             e.code == 'CONFIGURATION_NOT_FOUND' ||
             e.message?.contains('CONFIGURATION_NOT_FOUND') == true) {
           _firebaseAuthUnavailable = true;
-        } else if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          throw AuthException('Invalid email or password.');
-        } else if (e.code == 'user-disabled') {
-          throw AuthException('This user account has been disabled.');
         }
       } catch (e) {
-        if (e.toString().contains('CONFIGURATION_NOT_FOUND')) {
-          _firebaseAuthUnavailable = true;
-        }
         if (e is AuthException) rethrow;
       }
     }
 
-    // 3. Fallback to Local Database Engine authentication
+    // 2. Fallback to Local Database Engine authentication
     try {
       final localUser = _localStore.authenticateUser(email, password);
       if (localUser != null) {
@@ -201,7 +194,7 @@ class AuthService {
         } else if (e.code == 'email-already-in-use') {
           throw AuthException('An account already exists with this email address.');
         } else if (e.code == 'weak-password') {
-          throw AuthException('The password provided is too weak.');
+          throw AuthException('The password provided is too weak (minimum 6 characters).');
         } else if (e.code == 'invalid-email') {
           throw AuthException('The email address format is invalid.');
         }
@@ -231,17 +224,24 @@ class AuthService {
 
   /// Forgot / Reset Password Flow
   Future<void> sendPasswordResetEmail(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
     final auth = _safeAuth;
     if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
       try {
-        await auth.sendPasswordResetEmail(email: email.trim());
+        await auth.sendPasswordResetEmail(email: cleanEmail);
         return;
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          throw AuthException('No account found with this email address.');
+        } else if (e.code == 'invalid-email') {
+          throw AuthException('The email address format is invalid.');
+        }
       } catch (_) {}
     }
 
     // Local fallback succeeds if user exists in database
     final user = _localStore.getAllUsers().where(
-      (u) => u.email.toLowerCase() == email.trim().toLowerCase(),
+      (u) => u.email.toLowerCase() == cleanEmail,
     );
     if (user.isEmpty) {
       throw AuthException('No account found with this email address.');
@@ -252,8 +252,15 @@ class AuthService {
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
+    String? userEmail,
   }) async {
+    if (newPassword.length < 6) {
+      throw AuthException('New password must be at least 6 characters long.');
+    }
+
     final auth = _safeAuth;
+    bool firebaseUpdated = false;
+
     if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
       try {
         final user = auth.currentUser;
@@ -264,9 +271,33 @@ class AuthService {
           );
           await user.reauthenticateWithCredential(cred);
           await user.updatePassword(newPassword);
-          return;
+          firebaseUpdated = true;
         }
-      } catch (_) {}
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential' || e.code == 'user-mismatch') {
+          throw AuthException('Current password is incorrect.');
+        } else if (e.code == 'weak-password') {
+          throw AuthException('The new password provided is too weak (minimum 6 characters).');
+        } else if (e.code == 'requires-recent-login') {
+          throw AuthException('Please sign in again before changing your password.');
+        } else {
+          throw AuthException(e.message ?? 'Failed to update password.');
+        }
+      } catch (e) {
+        if (e is AuthException) rethrow;
+      }
+    }
+
+    // Update local persistent store as well
+    final targetEmail = userEmail ?? auth?.currentUser?.email;
+    if (targetEmail != null && targetEmail.isNotEmpty) {
+      try {
+        _localStore.changePassword(targetEmail, currentPassword, newPassword);
+      } catch (e) {
+        if (!firebaseUpdated) {
+          throw AuthException(e.toString().replaceAll('Exception: ', ''));
+        }
+      }
     }
   }
 

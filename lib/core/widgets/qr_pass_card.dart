@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'app_network_image.dart';
 import '../theme/app_colors.dart';
@@ -7,7 +8,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import '../utils/date_formatter.dart';
 
-/// The Signature Moment: Award-winning ticket-stub QR Pass card
+/// The Signature Moment: Custom-crafted VIP Ticket-Stub QR Pass Card
 class QRPassCard extends StatefulWidget {
   final String eventTitle;
   final String? bannerUrl;
@@ -50,7 +51,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 400),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _animController,
@@ -73,6 +74,24 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  void _copyPassId(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: widget.registrationId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text('Pass ID copied to clipboard: ${widget.registrationId.toUpperCase()}'),
+          ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -88,7 +107,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Radial Glow Source behind ticket in dark mode (content-driven)
+              // Radial Glow Source behind ticket
               if (isDark)
                 Positioned.fill(
                   child: Container(
@@ -107,23 +126,23 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
 
               // The Ticket Stub Physical Body
               PhysicalShape(
-                clipper: TicketStubClipper(notchRadius: 14, notchPositionFraction: 0.58),
+                clipper: TicketStubClipper(notchRadius: 14, notchPositionFraction: 0.52),
                 color: cardBg,
-                elevation: isDark ? 0 : 8,
-                shadowColor: Colors.black.withValues(alpha: 0.08),
+                elevation: isDark ? 0 : 10,
+                shadowColor: Colors.black.withValues(alpha: 0.12),
                 child: SizedBox(
-                  width: math.min(MediaQuery.of(context).size.width - 48, 360),
+                  width: math.min(MediaQuery.of(context).size.width - 40, 360),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Top Event Banner & Title Section
                       _buildTopSection(isDark, primaryTextColor, secondaryTextColor),
 
-                      // Perforated Divider Line
+                      // Perforated Divider Line with Notch Alignment
                       const PerforatedDivider(),
 
-                      // Bottom Pure-White QR Code Container Section
-                      _buildBottomSection(isDark, primaryTextColor, secondaryTextColor),
+                      // Bottom Custom QR Code Container Section
+                      _buildBottomSection(context, isDark, primaryTextColor, secondaryTextColor),
                     ],
                   ),
                 ),
@@ -132,19 +151,26 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
               // "CHECKED IN" Stamp Overlay
               if (widget.hasAttended)
                 Positioned(
-                  bottom: 90,
+                  bottom: 120,
                   child: Transform.rotate(
                     angle: -0.22, // ~ -12.5 degrees rotation
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                           width: 3.5,
                         ),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
-                            .withValues(alpha: 0.12),
+                            .withValues(alpha: 0.16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -153,8 +179,8 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
                             'CHECKED IN',
                             style: AppTypography.manrope(
                               fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2.0,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2.5,
                               color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                             ),
                           ),
@@ -163,7 +189,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
                               DateFormatter.formatDateTime(widget.checkedInAt),
                               style: AppTypography.manrope(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                               ),
                             ),
@@ -181,7 +207,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
 
   Widget _buildTopSection(bool isDark, Color primaryColor, Color secondaryColor) {
     return Container(
-      height: 200,
+      height: 210,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurfaceElevated : const Color(0xFFE9E6DC),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLarge)),
@@ -205,8 +231,8 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.1),
-                  Colors.black.withValues(alpha: 0.85),
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.88),
                 ],
               ),
             ),
@@ -214,37 +240,78 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
 
           // Content Details
           Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(18.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (widget.category != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightAccent,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      widget.category!.toUpperCase(),
-                      style: AppTypography.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.lightOnAccent,
-                        letterSpacing: 0.8,
+                Row(
+                  children: [
+                    if (widget.category != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightAccent,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          widget.category!.toUpperCase(),
+                          style: AppTypography.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.lightOnAccent,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    const Spacer(),
+                    // Live Pass Indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (widget.hasAttended ? const Color(0xFF10B981) : const Color(0xFFEAB308))
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: widget.hasAttended ? const Color(0xFF10B981) : const Color(0xFFEAB308),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.hasAttended ? const Color(0xFF10B981) : const Color(0xFFEAB308),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            widget.hasAttended ? 'ATTENDED' : 'VALID PASS',
+                            style: AppTypography.manrope(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 8),
 
-                // Signature Title: Italic Fraunces with SOFT/WONK
+                // Signature Title: Fraunces Signature
                 Text(
                   widget.eventTitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.frauncesSignature(
-                    fontSize: 24,
+                    fontSize: 22,
                     color: Colors.white,
                   ),
                 ),
@@ -252,7 +319,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
 
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFFF3F1E9)),
+                    const Icon(Icons.calendar_today_rounded, size: 12, color: Color(0xFFF3F1E9)),
                     const SizedBox(width: 5),
                     Text(
                       DateFormatter.formatShortDate(widget.eventDate),
@@ -264,7 +331,7 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
                     ),
                     if (widget.startTime != null && widget.startTime!.isNotEmpty) ...[
                       const SizedBox(width: 10),
-                      const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFFF3F1E9)),
+                      const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFFF3F1E9)),
                       const SizedBox(width: 5),
                       Text(
                         widget.startTime!,
@@ -277,6 +344,27 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
+                if (widget.location != null && widget.location!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 12, color: Color(0xFFDDD8CE)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          widget.location!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFFDDD8CE),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -285,43 +373,143 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildBottomSection(bool isDark, Color primaryColor, Color secondaryColor) {
+  Widget _buildBottomSection(BuildContext context, bool isDark, Color primaryColor, Color secondaryColor) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Guaranteed Pure-White QR Container for scanability
+          // Custom QR Code Viewport with 4-Corner Viewfinder Brackets
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white, // Hard technical requirement: always pure white
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE0DCD1), width: 1.0),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2DDD3), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                )
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
-            child: QrImageView(
-              data: widget.qrCodePayload,
-              version: QrVersions.auto,
-              size: 190.0,
-              backgroundColor: Colors.white,
-              eyeStyle: const QrEyeStyle(
-                eyeShape: QrEyeShape.square,
-                color: Colors.black,
-              ),
-              dataModuleStyle: const QrDataModuleStyle(
-                dataModuleShape: QrDataModuleShape.square,
-                color: Colors.black,
-              ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Custom-Styled QR Matrix
+                QrImageView(
+                  data: widget.qrCodePayload,
+                  version: QrVersions.auto,
+                  size: 180.0,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.circle,
+                    color: Color(0xFF0F172A),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.circle,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+
+                // Center Branded Shield Badge
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF0F172A), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0F172A),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.confirmation_num_rounded,
+                        size: 15,
+                        color: Color(0xFFD4E034), // Signal Lime accent
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 4 Corner Viewfinder Brackets
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  child: _CornerBracket(isTop: true, isLeft: true),
+                ),
+                const Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _CornerBracket(isTop: true, isLeft: false),
+                ),
+                const Positioned(
+                  bottom: 0,
+                  left: 0,
+                  child: _CornerBracket(isTop: false, isLeft: true),
+                ),
+                const Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: _CornerBracket(isTop: false, isLeft: false),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+
+          // Holographic Security Foil Simulation
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFE2E8F0),
+                  Color(0xFFCBD5E1),
+                  Color(0xFFF1F5F9),
+                  Color(0xFFE2E8F0),
+                ],
+              ),
+              border: Border.all(color: const Color(0xFF94A3B8), width: 0.6),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.verified_user_rounded, size: 12, color: Color(0xFF475569)),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'SECURITY TOKEN VERIFIED • EVENTEASE PASS',
+                    style: AppTypography.manrope(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF475569),
+                      letterSpacing: 0.6,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
 
           // Attendee Name & Pass Reference
           Text(
@@ -333,19 +521,108 @@ class _QRPassCardState extends State<QRPassCard> with SingleTickerProviderStateM
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            'Pass ID: ${widget.registrationId.length > 12 ? widget.registrationId.substring(0, 12).toUpperCase() : widget.registrationId.toUpperCase()}',
-            style: AppTypography.manrope(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: secondaryColor,
-              letterSpacing: 0.5,
+
+          InkWell(
+            onTap: () => _copyPassId(context),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Pass ID: ${widget.registrationId.toUpperCase()}',
+                    style: AppTypography.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: secondaryColor,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.copy_rounded,
+                    size: 13,
+                    color: secondaryColor,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Custom corner bracket for high-tech QR viewfinder aesthetic
+class _CornerBracket extends StatelessWidget {
+  final bool isTop;
+  final bool isLeft;
+
+  const _CornerBracket({required this.isTop, required this.isLeft});
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 16.0;
+    const thickness = 2.5;
+    const color = Color(0xFF334155);
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _BracketPainter(isTop: isTop, isLeft: isLeft, thickness: thickness, color: color),
+      ),
+    );
+  }
+}
+
+class _BracketPainter extends CustomPainter {
+  final bool isTop;
+  final bool isLeft;
+  final double thickness;
+  final Color color;
+
+  _BracketPainter({
+    required this.isTop,
+    required this.isLeft,
+    required this.thickness,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = thickness
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    if (isTop && isLeft) {
+      path.moveTo(0, size.height);
+      path.lineTo(0, 0);
+      path.lineTo(size.width, 0);
+    } else if (isTop && !isLeft) {
+      path.moveTo(0, 0);
+      path.lineTo(size.width, 0);
+      path.lineTo(size.width, size.height);
+    } else if (!isTop && isLeft) {
+      path.moveTo(0, 0);
+      path.lineTo(0, size.height);
+      path.lineTo(size.width, size.height);
+    } else {
+      path.moveTo(size.width, 0);
+      path.lineTo(size.width, size.height);
+      path.lineTo(0, size.height);
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Custom Clipper creating circular ticket notches on left and right edges
@@ -355,7 +632,7 @@ class TicketStubClipper extends CustomClipper<Path> {
 
   TicketStubClipper({
     this.notchRadius = 14.0,
-    this.notchPositionFraction = 0.58,
+    this.notchPositionFraction = 0.52,
   });
 
   @override
@@ -456,3 +733,4 @@ class PerforatedDivider extends StatelessWidget {
     );
   }
 }
+

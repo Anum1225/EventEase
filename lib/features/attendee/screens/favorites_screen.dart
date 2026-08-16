@@ -50,7 +50,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final regProvider = context.read<RegistrationProvider>();
     await regProvider.loadUserData(user.id);
 
-    final favIds = regProvider.favoriteEventIds;
+    final Set<String> favIds = {...regProvider.favoriteEventIds};
+    for (final r in regProvider.registrations) {
+      if (r.isRegistered) {
+        favIds.add(r.eventId);
+      }
+    }
+
     final List<EventModel> loaded = [];
 
     for (final id in favIds) {

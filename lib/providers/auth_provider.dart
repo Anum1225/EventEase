@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../firebase_options.dart';
 import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
@@ -45,19 +47,92 @@ class AuthProvider with ChangeNotifier {
   bool get isOrganizer => _currentUser?.role == 'organizer';
   bool get isAdmin => _currentUser?.role == 'admin';
 
-  void _init() {
+  Future<void> _init() async {
+    await _restoreSession();
+
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured) {
       _authService.authStateChanges.listen((firebaseUser) async {
         if (firebaseUser == null) {
-          _currentUser = null;
-          _status = AuthStatus.unauthenticated;
-          notifyListeners();
+          if (_currentUser == null) {
+            _status = AuthStatus.unauthenticated;
+            notifyListeners();
+          }
         } else {
           await refreshUser(firebaseUser.uid);
         }
       });
-    } else {
+    } else if (_currentUser == null) {
       _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    }
+  }
+
+  Future<SharedPreferences?> _getSafePrefs() async {
+    try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return null;
+      }
+      return await SharedPreferences.getInstance();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final prefs = await _getSafePrefs();
+      if (prefs == null) return;
+      final savedUserJson = prefs.getString('auth_current_user');
+      final savedUserId = prefs.getString('auth_current_user_id');
+
+      if (savedUserJson != null && savedUserJson.isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(savedUserJson);
+        final user = UserModel.fromMap(map, savedUserId ?? (map['id'] as String? ?? ''));
+        _currentUser = user;
+        _status = AuthStatus.authenticated;
+        _notificationService.initialize(user.id);
+        notifyListeners();
+      } else if (savedUserId != null && savedUserId.isNotEmpty) {
+        final user = await _userRepository.getUser(savedUserId);
+        if (user != null) {
+          _currentUser = user;
+          _status = AuthStatus.authenticated;
+          _notificationService.initialize(user.id);
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthProvider restoreSession note: $e');
+    }
+  }
+
+  Future<void> _saveSession(UserModel? user) async {
+    try {
+      final prefs = await _getSafePrefs();
+      if (prefs == null) return;
+      if (user == null) {
+        await prefs.remove('auth_current_user');
+        await prefs.remove('auth_current_user_id');
+      } else {
+        await prefs.setString('auth_current_user_id', user.id);
+        final jsonMap = <String, dynamic>{
+          'id': user.id,
+          'name': user.name,
+          'email': user.email,
+          'phone': user.phone,
+          'role': user.role,
+          'organizerApprovalStatus': user.organizerApprovalStatus,
+          'organizerApprovalReason': user.organizerApprovalReason,
+          'profileImage': user.profileImage,
+          'status': user.status,
+          'createdAt': user.createdAt.toIso8601String(),
+          'fcmToken': user.fcmToken,
+          'notificationPreferences': user.notificationPreferences,
+        };
+        await prefs.setString('auth_current_user', jsonEncode(jsonMap));
+      }
+    } catch (e) {
+      debugPrint('AuthProvider saveSession error: $e');
     }
   }
 
@@ -74,6 +149,7 @@ class AuthProvider with ChangeNotifier {
       _currentUser = user;
       _status = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
       if (user != null) {
+        await _saveSession(user);
         _notificationService.initialize(user.id);
       }
     } catch (e) {
@@ -91,6 +167,7 @@ class AuthProvider with ChangeNotifier {
       final user = await _authService.signIn(email: email, password: password);
       _currentUser = user;
       _status = AuthStatus.authenticated;
+      await _saveSession(user);
       _notificationService.initialize(user.id);
       _setLoading(false);
       return true;
@@ -125,6 +202,7 @@ class AuthProvider with ChangeNotifier {
       );
       _currentUser = user;
       _status = AuthStatus.authenticated;
+      await _saveSession(user);
       _notificationService.initialize(user.id);
       _setLoading(false);
       return true;
@@ -162,6 +240,7 @@ class AuthProvider with ChangeNotifier {
       await _authService.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
+        userEmail: _currentUser?.email,
       );
       _setLoading(false);
       return true;
@@ -202,6 +281,7 @@ class AuthProvider with ChangeNotifier {
         phone: phone,
         profileImage: imageUrl,
       );
+      await _saveSession(_currentUser);
       _setLoading(false);
       return true;
     } catch (e) {
@@ -216,6 +296,7 @@ class AuthProvider with ChangeNotifier {
     try {
       await _userRepository.updateNotificationPreferences(_currentUser!.id, prefs);
       _currentUser = _currentUser!.copyWith(notificationPreferences: prefs);
+      await _saveSession(_currentUser);
       notifyListeners();
     } catch (e) {
       // Non-critical
@@ -223,6 +304,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _saveSession(null);
     await _authService.signOut();
     _currentUser = null;
     _status = AuthStatus.unauthenticated;

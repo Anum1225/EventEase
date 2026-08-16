@@ -20,6 +20,8 @@ class AppTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final VoidCallback? onTap;
   final bool readOnly;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const AppTextField({
     super.key,
@@ -39,6 +41,8 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.onTap,
     this.readOnly = false,
+    this.textInputAction,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -96,6 +100,8 @@ class _AppTextFieldState extends State<AppTextField> {
           initialValue: widget.initialValue,
           validator: widget.validator,
           keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          onFieldSubmitted: widget.onFieldSubmitted,
           obscureText: _obscured,
           maxLines: widget.isPassword ? 1 : widget.maxLines,
           onChanged: widget.onChanged,

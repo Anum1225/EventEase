@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app.dart';
 import 'firebase_options.dart';
+import 'services/local_data_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,13 @@ void main() async {
   try {
     GoogleFonts.config.allowRuntimeFetching = true;
   } catch (_) {}
+
+  // Initialize Local persistent database cache
+  try {
+    await LocalDataStore().init();
+  } catch (e) {
+    debugPrint('LocalDataStore init note: $e');
+  }
 
   // Initialize Firebase if live project credentials are provided
   if (DefaultFirebaseOptions.isLiveFirebaseConfigured) {
