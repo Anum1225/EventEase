@@ -1,8 +1,14 @@
-# Unused Podfile created to explicitly set platform deployment target for Flutter & CocoaPods
+# Standard Flutter Podfile configuration for iOS
 platform :ios, '15.5'
 
 # CocoaPods analytics directive
 install! 'cocoapods', :disable_input_output_paths => true
+
+# Load Flutter helper methods
+flutter_ios_podfile_setup = File.join(File.dirname(File.realpath(__FILE__)), 'Flutter', 'podhelper.rb')
+if File.exist?(flutter_ios_podfile_setup)
+  load flutter_ios_podfile_setup
+end
 
 target 'Runner' do
   use_frameworks!
