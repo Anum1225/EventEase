@@ -105,6 +105,158 @@ class LocalDataStore {
     _passwords['arandaiman@gmail.com'] = '1QaZ2WsX';
     _passwords['noobgamerabduljabber@gmail.com'] = 'anumnaz';
     _passwords['admin@eventease.com'] = 'Admin123!';
+
+    // Default Seed Events
+    if (_events.isEmpty) {
+      final seedEvents = [
+        EventModel(
+          id: 'evt_tech_summit_2026',
+          title: 'Pakistan Tech Summit & AI Expo 2026',
+          description: 'The premier national gathering for artificial intelligence innovators, developers, startup founders, and engineering leaders across Pakistan.',
+          date: DateTime.now().add(const Duration(days: 4)),
+          startTime: '09:00 AM',
+          endTime: '05:00 PM',
+          location: 'Karachi Expo Centre, Main University Road, Karachi',
+          category: 'Technology',
+          maxParticipants: 500,
+          registeredCount: 142,
+          organizerId: 'usr_org_arandaiman',
+          organizerName: 'Arand Aiman',
+          organizerEmail: 'arandaiman@gmail.com',
+          status: AppConstants.eventStatusApproved,
+          createdAt: DateTime.now().subtract(const Duration(days: 10)),
+        ),
+        EventModel(
+          id: 'evt_youth_music_gala',
+          title: 'Lahore Youth Music & Arts Festival',
+          description: 'A vibrant evening celebration featuring Pakistan\'s finest indie musical performers, live canvas art, cultural exhibits, and culinary stalls.',
+          date: DateTime.now().add(const Duration(days: 8)),
+          startTime: '04:00 PM',
+          endTime: '10:00 PM',
+          location: 'Alhamra Arts Council, 68 Mall Road, Lahore',
+          category: 'Music',
+          maxParticipants: 300,
+          registeredCount: 85,
+          organizerId: 'usr_org_arandaiman',
+          organizerName: 'Arand Aiman',
+          organizerEmail: 'arandaiman@gmail.com',
+          status: AppConstants.eventStatusApproved,
+          createdAt: DateTime.now().subtract(const Duration(days: 7)),
+        ),
+        EventModel(
+          id: 'evt_isb_leadership_summit',
+          title: 'Islamabad Executive Leadership Summit',
+          description: 'Keynote panels and roundtable dialogues with business executives, policymakers, and civic leaders on driving sustainable economic growth.',
+          date: DateTime.now().add(const Duration(days: 14)),
+          startTime: '10:00 AM',
+          endTime: '03:00 PM',
+          location: 'Serena Hotel Islamabad, Sector G-5/1, Islamabad',
+          category: 'Business',
+          maxParticipants: 150,
+          registeredCount: 64,
+          organizerId: 'usr_org_arandaiman',
+          organizerName: 'Arand Aiman',
+          organizerEmail: 'arandaiman@gmail.com',
+          status: AppConstants.eventStatusApproved,
+          createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        ),
+        EventModel(
+          id: 'evt_rwp_gaming_championship',
+          title: 'Rawalpindi E-Sports Championship',
+          description: 'National gaming tournament featuring competitive Valorant, Tekken 8, and FC24 brackets with cash prizes and pro streamer showcases.',
+          date: DateTime.now().add(const Duration(days: 20)),
+          startTime: '11:00 AM',
+          endTime: '08:00 PM',
+          location: 'Ayub National Park & Marquees, Rawalpindi',
+          category: 'Entertainment',
+          maxParticipants: 200,
+          registeredCount: 0,
+          organizerId: 'usr_org_arandaiman',
+          organizerName: 'Arand Aiman',
+          organizerEmail: 'arandaiman@gmail.com',
+          status: AppConstants.eventStatusPendingApproval,
+          createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        ),
+      ];
+
+      for (final e in seedEvents) {
+        _events[e.id] = e;
+      }
+    }
+
+    // Default Seed Registrations
+    if (_registrations.isEmpty) {
+      final seedRegs = [
+        RegistrationModel(
+          id: 'reg_demo_001',
+          eventId: 'evt_tech_summit_2026',
+          userId: 'usr_att_noobgamer',
+          userName: 'Abdul Jabbar',
+          userEmail: 'noobgamerabduljabber@gmail.com',
+          eventTitle: 'Pakistan Tech Summit & AI Expo 2026',
+          eventDate: DateTime.now().add(const Duration(days: 4)),
+          eventLocation: 'Karachi Expo Centre, Main University Road, Karachi',
+          eventCategory: 'Technology',
+          registeredAt: DateTime.now().subtract(const Duration(days: 3)),
+          status: AppConstants.registrationStatusRegistered,
+          qrCode: 'EASE-TECH-2026-AJ001',
+        ),
+        RegistrationModel(
+          id: 'reg_demo_002',
+          eventId: 'evt_youth_music_gala',
+          userId: 'usr_att_noobgamer',
+          userName: 'Abdul Jabbar',
+          userEmail: 'noobgamerabduljabber@gmail.com',
+          eventTitle: 'Lahore Youth Music & Arts Festival',
+          eventDate: DateTime.now().add(const Duration(days: 8)),
+          eventLocation: 'Alhamra Arts Council, 68 Mall Road, Lahore',
+          eventCategory: 'Music',
+          registeredAt: DateTime.now().subtract(const Duration(days: 2)),
+          status: AppConstants.registrationStatusRegistered,
+          qrCode: 'EASE-MUSIC-2026-AJ002',
+        ),
+      ];
+
+      for (final r in seedRegs) {
+        _registrations[r.id] = r;
+      }
+    }
+
+    // Default Seed Feedback
+    if (_feedbacks.isEmpty) {
+      final seedFeedbacks = [
+        FeedbackModel(
+          id: 'usr_att_noobgamer_evt_tech_summit_2026',
+          eventId: 'evt_tech_summit_2026',
+          userId: 'usr_att_noobgamer',
+          userName: 'Abdul Jabbar',
+          rating: 5,
+          comment: 'Incredible experience! The AI keynotes and networking sessions were world-class.',
+          submittedAt: DateTime.now().subtract(const Duration(hours: 12)),
+        ),
+      ];
+      for (final f in seedFeedbacks) {
+        _feedbacks[f.id] = f;
+      }
+    }
+
+    // Default Seed Contact Messages
+    if (_contacts.isEmpty) {
+      final seedMsgs = [
+        ContactMessageModel(
+          id: 'msg_seed_001',
+          userId: 'usr_att_noobgamer',
+          name: 'Abdul Jabbar',
+          email: 'noobgamerabduljabber@gmail.com',
+          subject: 'Venue Accessibility Inquiry',
+          message: 'Hello! Will dedicated parking and wheelchair accessibility ramps be available at the main entrance?',
+          submittedAt: DateTime.now().subtract(const Duration(hours: 5)),
+        ),
+      ];
+      for (final m in seedMsgs) {
+        _contacts[m.id] = m;
+      }
+    }
   }
 
   static bool enableDiskPersistence = true;

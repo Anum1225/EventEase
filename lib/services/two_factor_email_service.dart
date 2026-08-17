@@ -112,13 +112,6 @@ class TwoFactorEmailService {
     required String otpCode,
     required String actionType,
   }) async {
-    final subject = '🛡️ EventEase Security Verification Code: $otpCode';
-    final htmlContent = _buildHtmlEmail(
-      userName: userName,
-      otpCode: otpCode,
-      actionType: actionType,
-    );
-
     // Outbound Email Dispatch via FormSubmit Gateway
     try {
       final formSubmitResponse = await _httpClient.post(
@@ -128,19 +121,17 @@ class TwoFactorEmailService {
           'Accept': 'application/json',
         },
         body: jsonEncode({
-          '_subject': subject,
+          '_subject': 'EventEase Security Verification Code: $otpCode',
           '_template': 'box',
           '_captcha': 'false',
-          'Application': 'EventEase Security',
-          'Recipient': toEmail,
-          'User': userName.isNotEmpty ? userName : 'Valued Member',
           'Security Verification Code': otpCode,
           'Action Requested': actionType,
+          'Account': toEmail,
+          'User': userName.isNotEmpty ? userName : 'Valued Member',
           'Validity': '10 Minutes',
-          'Security Advisory': 'Never share this code with anyone. EventEase will never ask for your verification code.',
-          'html': htmlContent,
+          'Security Notice': 'Never share this one-time code with anyone. EventEase staff will never ask for your verification code.',
         }),
-      ).timeout(const Duration(seconds: 3), onTimeout: () {
+      ).timeout(const Duration(seconds: 4), onTimeout: () {
         return http.Response('timeout', 408);
       });
 

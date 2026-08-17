@@ -506,7 +506,7 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                isFav ? 'Removed from Saved Events' : 'Saved to Favorites! ❤️',
+                                isFav ? 'Removed from Saved Events' : 'Saved to Favorites!',
                               ),
                               duration: const Duration(seconds: 2),
                             ),

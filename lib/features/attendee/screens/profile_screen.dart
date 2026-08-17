@@ -298,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Two-Factor Authentication enabled successfully! 🛡️'),
+            content: Text('Two-Factor Authentication has been successfully enabled.'),
             backgroundColor: Color(0xFF10B981),
           ),
         );
