@@ -131,20 +131,39 @@ class EventRepository {
     return Stream.value(_localStore.getEventById(eventId));
   }
 
-  /// Organizer: Stream events owned by a specific organizer
   Stream<List<EventModel>> streamOrganizerEvents(String organizerId) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
       return _eventsCol!
           .where('organizerId', isEqualTo: organizerId)
           .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList())
+          .map((snap) {
+            final remote = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
+            final local = _localStore.getEventsByOrganizer(organizerId);
+            final List<EventModel> merged = [];
+            for (final rem in remote) {
+              final loc = local.where((l) => l.id == rem.id).firstOrNull;
+              if (loc != null && (loc.isCompleted || loc.status == AppConstants.eventStatusCompleted)) {
+                merged.add(rem.copyWith(status: AppConstants.eventStatusCompleted));
+              } else {
+                merged.add(rem);
+              }
+            }
+            for (final loc in local) {
+              if (!merged.any((m) => m.id == loc.id)) {
+                merged.add(loc);
+              }
+            }
+            merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return merged;
+          })
           .handleError((_) => _localStore.getEventsByOrganizer(organizerId));
     }
     return Stream.value(_localStore.getEventsByOrganizer(organizerId));
   }
 
   Future<List<EventModel>> getOrganizerEvents(String organizerId, [String? organizerEmail]) async {
+    final localEvents = _localStore.getEventsByOrganizer(organizerId, organizerEmail);
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
       try {
         final snap = await _eventsCol!
@@ -152,13 +171,31 @@ class EventRepository {
             .get()
             .timeout(const Duration(milliseconds: 2500));
         if (snap.docs.isNotEmpty) {
-          final events = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
-          events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return events;
+          final remoteEvents = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
+          final List<EventModel> merged = [];
+          for (final rem in remoteEvents) {
+            final loc = localEvents.where((l) => l.id == rem.id).firstOrNull;
+            if (loc != null) {
+              if (loc.isCompleted || loc.status == AppConstants.eventStatusCompleted) {
+                merged.add(rem.copyWith(status: AppConstants.eventStatusCompleted));
+              } else {
+                merged.add(rem);
+              }
+            } else {
+              merged.add(rem);
+            }
+          }
+          for (final loc in localEvents) {
+            if (!merged.any((m) => m.id == loc.id)) {
+              merged.add(loc);
+            }
+          }
+          merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return merged;
         }
       } catch (_) {}
     }
-    return _localStore.getEventsByOrganizer(organizerId, organizerEmail);
+    return localEvents;
   }
 
   /// Organizer: Create event (always defaults to pending_approval)

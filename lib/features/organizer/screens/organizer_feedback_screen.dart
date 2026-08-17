@@ -12,6 +12,8 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/feedback_provider.dart';
 import '../../../providers/contact_provider.dart';
+import '../../../services/two_factor_email_service.dart';
+import '../../../repositories/notification_repository.dart';
 
 class OrganizerFeedbackScreen extends StatefulWidget {
   final String? initialEventId;
@@ -138,14 +140,49 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final replyText = replyController.text.trim();
+              if (replyText.isEmpty) return;
               Navigator.pop(ctx);
+
+              final currentOrganizer = context.read<AuthProvider>().currentUser;
+              final organizerName = currentOrganizer?.name ?? 'Event Organizer';
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Response successfully sent to ${msg.email}!'),
-                  backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                  content: Text('Dispatching response to ${msg.email}...'),
+                  duration: const Duration(seconds: 2),
                 ),
               );
+
+              // 1. Dispatch real email to the user's email address
+              await TwoFactorEmailService.sendOrganizerReplyEmail(
+                toEmail: msg.email,
+                attendeeName: msg.name,
+                organizerName: organizerName,
+                subject: msg.subject,
+                originalMessage: msg.message,
+                replyMessage: replyText,
+              );
+
+              // 2. Dispatch real in-app notification if userId is known
+              if (msg.userId != null && msg.userId!.isNotEmpty && msg.userId != 'guest') {
+                await NotificationRepository().sendNotification(
+                  userId: msg.userId!,
+                  title: 'Organizer Response: ${msg.subject}',
+                  message: '$organizerName replied: "$replyText"',
+                  type: 'inquiry_response',
+                );
+              }
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Email response sent to ${msg.email}!'),
+                    backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                  ),
+                );
+              }
             },
             child: const Text('Send Response'),
           ),

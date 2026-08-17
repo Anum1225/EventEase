@@ -317,18 +317,19 @@ class RegistrationRepository {
     }
 
     final localList = _localStore.getEventParticipants(eventId, organizerEventIds);
+    if (eventId.isNotEmpty && eventId != 'all') {
+      localList.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
+      return localList;
+    }
+
     for (final loc in localList) {
       if (!list.any((r) => r.id == loc.id)) {
         list.add(loc);
       }
     }
 
-    if (eventId.isEmpty || eventId == 'all') {
-      if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
-        list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
-      }
-    } else {
-      list = list.where((r) => r.eventId == eventId || localList.any((l) => l.id == r.id)).toList();
+    if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+      list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
     }
 
     list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));

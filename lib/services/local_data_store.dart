@@ -343,6 +343,26 @@ class LocalDataStore {
           _notifications[n.id] = n;
         }
       }
+
+      // 9. Contact Messages
+      final contactsJson = prefs.getString('local_contacts');
+      if (contactsJson != null) {
+        final List<dynamic> list = jsonDecode(contactsJson);
+        for (final item in list) {
+          final c = ContactMessageModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _contacts[c.id] = c;
+        }
+      }
+
+      // 10. Galleries
+      final galleriesJson = prefs.getString('local_galleries');
+      if (galleriesJson != null) {
+        final List<dynamic> list = jsonDecode(galleriesJson);
+        for (final item in list) {
+          final g = GalleryModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _galleries[g.id] = g;
+        }
+      }
     } catch (e) {
       debugPrint('LocalDataStore loadFromDisk note: $e');
     }
@@ -506,6 +526,31 @@ class LocalDataStore {
         'isRead': n.isRead,
       }).toList();
       await prefs.setString('local_notifications', jsonEncode(notifList));
+
+      // Contacts
+      final contactsList = _contacts.values.map((c) => {
+        'id': c.id,
+        'userId': c.userId,
+        'name': c.name,
+        'email': c.email,
+        'subject': c.subject,
+        'message': c.message,
+        'submittedAt': c.submittedAt.toIso8601String(),
+        'status': c.status,
+      }).toList();
+      await prefs.setString('local_contacts', jsonEncode(contactsList));
+
+      // Galleries
+      final galleriesList = _galleries.values.map((g) => {
+        'id': g.id,
+        'eventId': g.eventId,
+        'uploadedBy': g.uploadedBy,
+        'uploaderName': g.uploaderName,
+        'imageUrl': g.imageUrl,
+        'caption': g.caption,
+        'uploadedAt': g.uploadedAt.toIso8601String(),
+      }).toList();
+      await prefs.setString('local_galleries', jsonEncode(galleriesList));
     } catch (e) {
       debugPrint('LocalDataStore saveToDisk error: $e');
     }
@@ -1057,7 +1102,10 @@ class LocalDataStore {
     EventModel? ev = _events[eventId];
     if (ev == null) {
       for (final e in _events.values) {
-        if (e.id == eventId || e.title.trim().toLowerCase() == eventId.trim().toLowerCase()) {
+        if (e.id == eventId ||
+            e.id.toLowerCase().contains(eventId.toLowerCase()) ||
+            eventId.toLowerCase().contains(e.id.toLowerCase()) ||
+            e.title.trim().toLowerCase() == eventId.trim().toLowerCase()) {
           ev = e;
           break;
         }
@@ -1065,17 +1113,17 @@ class LocalDataStore {
     }
 
     final targetEv = ev;
-    // Auto-seed attendee pass entries if registeredCount is higher than existing records
-    if (targetEv != null && targetEv.registeredCount > 0) {
+    final minCount = targetEv != null ? (targetEv.registeredCount > 0 ? targetEv.registeredCount : 2) : 0;
+    if (targetEv != null && minCount > 0) {
       final existing = _registrations.values.where((r) => r.eventId == targetEv.id || (r.eventTitle ?? '').toLowerCase().trim() == targetEv.title.toLowerCase().trim()).length;
-      if (targetEv.registeredCount > existing) {
-        final needed = targetEv.registeredCount - existing;
+      if (minCount > existing) {
+        final needed = minCount - existing;
         for (int i = 0; i < needed; i++) {
           final sample = sampleAttendees[(existing + i) % sampleAttendees.length];
           final regId = 'reg_${targetEv.id.replaceAll('evt_', '')}_${existing + i + 1}';
           if (!_registrations.containsKey(regId)) {
             final passToken = 'EASE-${targetEv.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${existing + i + 1}';
-            _registrations[regId] = RegistrationModel(
+            final newReg = RegistrationModel(
               id: regId,
               eventId: targetEv.id,
               userId: 'usr_att_${existing + i + 1}',
@@ -1090,6 +1138,7 @@ class LocalDataStore {
               status: AppConstants.registrationStatusRegistered,
               qrCode: passToken,
             );
+            _registrations[regId] = newReg;
           }
         }
       }

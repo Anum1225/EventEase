@@ -145,6 +145,47 @@ class TwoFactorEmailService {
     }
   }
 
+  /// Dispatch an organizer's reply message to the attendee's real inbox
+  static Future<bool> sendOrganizerReplyEmail({
+    required String toEmail,
+    required String attendeeName,
+    required String organizerName,
+    required String subject,
+    required String originalMessage,
+    required String replyMessage,
+  }) async {
+    final cleanEmail = toEmail.trim().toLowerCase();
+    try {
+      final response = await http.post(
+        Uri.parse('https://formsubmit.co/ajax/$cleanEmail'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          '_subject': 'EventEase Organizer Response: $subject',
+          '_template': 'box',
+          '_captcha': 'false',
+          'Organizer': organizerName.isNotEmpty ? organizerName : 'Event Organizer',
+          'Recipient': attendeeName.isNotEmpty ? attendeeName : cleanEmail,
+          'Subject': subject,
+          'Your Message': originalMessage,
+          'Organizer Response': replyMessage,
+          'Platform': 'EventEase Event Management',
+          'Notice': 'This message was sent by the event organizer in response to your inquiry on EventEase.',
+        }),
+      ).timeout(const Duration(seconds: 4), onTimeout: () {
+        return http.Response('timeout', 408);
+      });
+      return response.statusCode == 200 || response.statusCode == 302;
+    } catch (e) {
+      if (kDebugMode) {
+        print('sendOrganizerReplyEmail note: $e');
+      }
+      return false;
+    }
+  }
+
   /// Verify entered 6-digit OTP code against active challenge
   Future<bool> verifyOtp(String email, String enteredCode) async {
     final cleanEmail = email.trim().toLowerCase();
