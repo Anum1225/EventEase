@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/qr_image_decoder.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/event_provider.dart';
@@ -124,13 +125,23 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
 
-      if (!kIsWeb) {
+      setState(() => _isProcessing = true);
+
+      // 1. Try web/JS direct QR decoding if running on Web
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        final decoded = await QrImageDecoder.decodeFromBytes(bytes);
+        if (decoded != null && decoded.isNotEmpty) {
+          _processCode(decoded, targetId);
+          return;
+        }
+      } else {
+        // 2. Try native mobile ML Kit scanner
         try {
           final BarcodeCapture? barcodes = await _scannerController.analyzeImage(image.path);
           if (barcodes != null && barcodes.barcodes.isNotEmpty) {
             final rawValue = barcodes.barcodes.first.rawValue;
             if (rawValue != null && rawValue.isNotEmpty) {
-              setState(() => _isProcessing = true);
               _processCode(rawValue, targetId);
               return;
             }
@@ -138,13 +149,20 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
         } catch (_) {}
       }
 
-      // On Web or fallback: open seamless fast pass check-in dialog
+      setState(() => _isProcessing = false);
+
+      // Fallback: If no barcode was detected in image
       if (mounted) {
-        _showManualEntryDialog(initialHint: image.name.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), ''));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No QR code detected in the selected image. Please ensure the QR code is clearly visible.')),
+        );
       }
     } catch (e) {
+      setState(() => _isProcessing = false);
       if (mounted) {
-        _showManualEntryDialog();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to read image: $e')),
+        );
       }
     }
   }

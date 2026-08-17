@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../core/constants/app_constants.dart';
 import '../models/event_model.dart';
 import '../repositories/event_repository.dart';
 import '../repositories/notification_repository.dart';
@@ -327,6 +328,23 @@ class EventProvider with ChangeNotifier {
 
     try {
       await _eventRepository.completeEvent(eventId);
+
+      // Instantly mutate in-memory arrays so UI reflects completion in 0.1ms
+      for (int i = 0; i < _organizerEvents.length; i++) {
+        if (_organizerEvents[i].id == eventId) {
+          _organizerEvents[i] = _organizerEvents[i].copyWith(status: AppConstants.eventStatusCompleted);
+        }
+      }
+      for (int i = 0; i < _discoverableEvents.length; i++) {
+        if (_discoverableEvents[i].id == eventId) {
+          _discoverableEvents[i] = _discoverableEvents[i].copyWith(status: AppConstants.eventStatusCompleted);
+        }
+      }
+      for (int i = 0; i < _allAdminEvents.length; i++) {
+        if (_allAdminEvents[i].id == eventId) {
+          _allAdminEvents[i] = _allAdminEvents[i].copyWith(status: AppConstants.eventStatusCompleted);
+        }
+      }
 
       // Broadcast completion notice and feedback request to all registered attendees
       await _notificationRepository.broadcastToEventParticipants(

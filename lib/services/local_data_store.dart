@@ -999,7 +999,51 @@ class LocalDataStore {
   }
 
   List<RegistrationModel> getEventParticipants(String eventId, [List<String>? organizerEventIds]) {
+    final sampleAttendees = [
+      {'name': 'Abdul Jabbar', 'email': 'noobgamerabduljabber@gmail.com'},
+      {'name': 'Fatima Zahra', 'email': 'fatima.zahra@gmail.com'},
+      {'name': 'Hamza Tariq', 'email': 'hamza.tariq@gmail.com'},
+      {'name': 'Ayesha Khan', 'email': 'ayesha.khan@gmail.com'},
+      {'name': 'Zain Malik', 'email': 'zain.malik@gmail.com'},
+      {'name': 'Sana Mir', 'email': 'sana.mir@gmail.com'},
+    ];
+
     if (eventId.isEmpty || eventId == 'all') {
+      final relevantEvents = (organizerEventIds != null && organizerEventIds.isNotEmpty)
+          ? _events.values.where((e) => organizerEventIds.contains(e.id)).toList()
+          : _events.values.toList();
+
+      for (final ev in relevantEvents) {
+        if (ev.registeredCount > 0) {
+          final existing = _registrations.values.where((r) => r.eventId == ev.id || (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim()).length;
+          if (ev.registeredCount > existing) {
+            final needed = ev.registeredCount - existing;
+            for (int i = 0; i < needed; i++) {
+              final regId = 'reg_${ev.id.replaceAll('evt_', '')}_${existing + i + 1}';
+              if (!_registrations.containsKey(regId)) {
+                final sample = sampleAttendees[(existing + i) % sampleAttendees.length];
+                final passToken = 'EASE-${ev.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${existing + i + 1}';
+                _registrations[regId] = RegistrationModel(
+                  id: regId,
+                  eventId: ev.id,
+                  userId: 'usr_att_${existing + i + 1}',
+                  userName: sample['name']!,
+                  userEmail: sample['email']!,
+                  eventTitle: ev.title,
+                  eventDate: ev.date,
+                  eventLocation: ev.location,
+                  eventBanner: ev.imageUrl,
+                  eventCategory: ev.category,
+                  registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
+                  status: AppConstants.registrationStatusRegistered,
+                  qrCode: passToken,
+                );
+              }
+            }
+          }
+        }
+      }
+
       if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
         final list = _registrations.values.where((r) => organizerEventIds.contains(r.eventId)).toList();
         list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
@@ -1020,49 +1064,42 @@ class LocalDataStore {
       }
     }
 
+    final targetEv = ev;
+    // Auto-seed attendee pass entries if registeredCount is higher than existing records
+    if (targetEv != null && targetEv.registeredCount > 0) {
+      final existing = _registrations.values.where((r) => r.eventId == targetEv.id || (r.eventTitle ?? '').toLowerCase().trim() == targetEv.title.toLowerCase().trim()).length;
+      if (targetEv.registeredCount > existing) {
+        final needed = targetEv.registeredCount - existing;
+        for (int i = 0; i < needed; i++) {
+          final sample = sampleAttendees[(existing + i) % sampleAttendees.length];
+          final regId = 'reg_${targetEv.id.replaceAll('evt_', '')}_${existing + i + 1}';
+          if (!_registrations.containsKey(regId)) {
+            final passToken = 'EASE-${targetEv.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${existing + i + 1}';
+            _registrations[regId] = RegistrationModel(
+              id: regId,
+              eventId: targetEv.id,
+              userId: 'usr_att_${existing + i + 1}',
+              userName: sample['name']!,
+              userEmail: sample['email']!,
+              eventTitle: targetEv.title,
+              eventDate: targetEv.date,
+              eventLocation: targetEv.location,
+              eventBanner: targetEv.imageUrl,
+              eventCategory: targetEv.category,
+              registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
+              status: AppConstants.registrationStatusRegistered,
+              qrCode: passToken,
+            );
+          }
+        }
+      }
+    }
+
     final list = _registrations.values.where((r) {
       if (r.eventId == eventId) return true;
       if (ev != null && (r.eventId == ev.id || (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim())) return true;
       return false;
     }).toList();
-
-    // Auto-seed attendee pass entries if registeredCount is higher than existing records
-    if (ev != null && ev.registeredCount > list.length) {
-      final needed = ev.registeredCount - list.length;
-      final sampleAttendees = [
-        {'name': 'Abdul Jabbar', 'email': 'noobgamerabduljabber@gmail.com'},
-        {'name': 'Fatima Zahra', 'email': 'fatima.zahra@gmail.com'},
-        {'name': 'Hamza Tariq', 'email': 'hamza.tariq@gmail.com'},
-        {'name': 'Ayesha Khan', 'email': 'ayesha.khan@gmail.com'},
-        {'name': 'Zain Malik', 'email': 'zain.malik@gmail.com'},
-        {'name': 'Sana Mir', 'email': 'sana.mir@gmail.com'},
-      ];
-
-      for (int i = 0; i < needed; i++) {
-        final sample = sampleAttendees[(list.length + i) % sampleAttendees.length];
-        final regId = 'reg_${ev.id.replaceAll('evt_', '')}_${list.length + i + 1}';
-        if (!_registrations.containsKey(regId)) {
-          final passToken = 'EASE-${ev.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${list.length + i + 1}';
-          final newReg = RegistrationModel(
-            id: regId,
-            eventId: ev.id,
-            userId: 'usr_att_${list.length + i + 1}',
-            userName: sample['name']!,
-            userEmail: sample['email']!,
-            eventTitle: ev.title,
-            eventDate: ev.date,
-            eventLocation: ev.location,
-            eventBanner: ev.imageUrl,
-            eventCategory: ev.category,
-            registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
-            status: AppConstants.registrationStatusRegistered,
-            qrCode: passToken,
-          );
-          _registrations[regId] = newReg;
-          list.add(newReg);
-        }
-      }
-    }
 
     list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
     return list;

@@ -323,9 +323,11 @@ class RegistrationRepository {
       }
     }
 
-    if ((eventId.isEmpty || eventId == 'all') && organizerEventIds != null && organizerEventIds.isNotEmpty) {
-      list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
-    } else if (eventId.isNotEmpty && eventId != 'all') {
+    if (eventId.isEmpty || eventId == 'all') {
+      if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+        list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
+      }
+    } else {
       list = list.where((r) => r.eventId == eventId || localList.any((l) => l.id == r.id)).toList();
     }
 

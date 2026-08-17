@@ -41,7 +41,6 @@ class _OrganizerShellState extends State<OrganizerShell> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final indigoAccent = isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent;
-    final unreadCount = context.watch<NotificationProvider>().unreadCount;
 
     return Scaffold(
       body: widget.navigationShell,
@@ -70,11 +69,10 @@ class _OrganizerShellState extends State<OrganizerShell> {
             selectedIcon: Icons.people_rounded,
             label: 'Roster',
           ),
-          ModernNavItem(
+          const ModernNavItem(
             icon: Icons.star_outline_rounded,
             selectedIcon: Icons.star_rounded,
             label: 'Reviews',
-            badgeCount: unreadCount,
           ),
         ],
       ),

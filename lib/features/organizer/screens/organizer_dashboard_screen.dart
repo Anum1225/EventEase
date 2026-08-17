@@ -638,6 +638,9 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                           organizerId: auth?.id,
                                           organizerEmail: auth?.email,
                                         );
+                                        if (mounted) {
+                                          setState(() {});
+                                        }
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
