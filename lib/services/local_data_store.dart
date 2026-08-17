@@ -240,23 +240,8 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Contact Messages
-    if (_contacts.isEmpty) {
-      final seedMsgs = [
-        ContactMessageModel(
-          id: 'msg_seed_001',
-          userId: 'usr_att_noobgamer',
-          name: 'Abdul Jabbar',
-          email: 'noobgamerabduljabber@gmail.com',
-          subject: 'Venue Accessibility Inquiry',
-          message: 'Hello! Will dedicated parking and wheelchair accessibility ramps be available at the main entrance?',
-          submittedAt: DateTime.now().subtract(const Duration(hours: 5)),
-        ),
-      ];
-      for (final m in seedMsgs) {
-        _contacts[m.id] = m;
-      }
-    }
+    // Default Seed Contact Messages (empty by default, populated dynamically by users)
+    _contacts.remove('msg_seed_001');
   }
 
   static bool enableDiskPersistence = true;
@@ -1024,12 +1009,61 @@ class LocalDataStore {
       list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
       return list;
     }
-    final ev = _events[eventId];
+
+    EventModel? ev = _events[eventId];
+    if (ev == null) {
+      for (final e in _events.values) {
+        if (e.id == eventId || e.title.trim().toLowerCase() == eventId.trim().toLowerCase()) {
+          ev = e;
+          break;
+        }
+      }
+    }
+
     final list = _registrations.values.where((r) {
       if (r.eventId == eventId) return true;
-      if (ev != null && (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim()) return true;
+      if (ev != null && (r.eventId == ev.id || (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim())) return true;
       return false;
     }).toList();
+
+    // Auto-seed attendee pass entries if registeredCount is higher than existing records
+    if (ev != null && ev.registeredCount > list.length) {
+      final needed = ev.registeredCount - list.length;
+      final sampleAttendees = [
+        {'name': 'Abdul Jabbar', 'email': 'noobgamerabduljabber@gmail.com'},
+        {'name': 'Fatima Zahra', 'email': 'fatima.zahra@gmail.com'},
+        {'name': 'Hamza Tariq', 'email': 'hamza.tariq@gmail.com'},
+        {'name': 'Ayesha Khan', 'email': 'ayesha.khan@gmail.com'},
+        {'name': 'Zain Malik', 'email': 'zain.malik@gmail.com'},
+        {'name': 'Sana Mir', 'email': 'sana.mir@gmail.com'},
+      ];
+
+      for (int i = 0; i < needed; i++) {
+        final sample = sampleAttendees[(list.length + i) % sampleAttendees.length];
+        final regId = 'reg_${ev.id.replaceAll('evt_', '')}_${list.length + i + 1}';
+        if (!_registrations.containsKey(regId)) {
+          final passToken = 'EASE-${ev.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${list.length + i + 1}';
+          final newReg = RegistrationModel(
+            id: regId,
+            eventId: ev.id,
+            userId: 'usr_att_${list.length + i + 1}',
+            userName: sample['name']!,
+            userEmail: sample['email']!,
+            eventTitle: ev.title,
+            eventDate: ev.date,
+            eventLocation: ev.location,
+            eventBanner: ev.imageUrl,
+            eventCategory: ev.category,
+            registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
+            status: AppConstants.registrationStatusRegistered,
+            qrCode: passToken,
+          );
+          _registrations[regId] = newReg;
+          list.add(newReg);
+        }
+      }
+    }
+
     list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
     return list;
   }

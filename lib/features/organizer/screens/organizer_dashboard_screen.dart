@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
@@ -474,7 +475,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                       spacing: 6,
                                       runSpacing: 4,
                                       children: [
-                                        StatusBadge(status: event.status),
+                                        StatusBadge(status: event.isCompleted ? AppConstants.eventStatusCompleted : event.status),
                                         CategoryChip(category: event.category, fontSize: 10, iconSize: 11),
                                       ],
                                     ),
@@ -664,6 +665,30 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                   ),
                                 ),
                               ],
+                              if (event.isCompleted)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle_rounded, size: 14, color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Event Completed',
+                                        style: AppTypography.manrope(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ],

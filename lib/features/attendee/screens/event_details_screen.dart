@@ -14,6 +14,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/map_location_picker_dialog.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../models/event_model.dart';
+import '../../../repositories/contact_repository.dart';
 import '../../../repositories/event_repository.dart';
 import '../../../repositories/notification_repository.dart';
 import '../../../providers/auth_provider.dart';
@@ -239,6 +240,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                 message: '${user.name}: ${messageController.text.trim()}',
                                 type: 'announcement',
                                 eventId: _event!.id,
+                              );
+
+                              final contactRepo = ContactRepository();
+                              await contactRepo.submitMessage(
+                                userId: user.id,
+                                name: user.name,
+                                email: user.email,
+                                subject: 'Inquiry: ${_event!.title}',
+                                message: messageController.text.trim(),
                               );
 
                               if (modalCtx.mounted) {

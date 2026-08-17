@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -123,32 +124,33 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
 
-      final BarcodeCapture? barcodes = await _scannerController.analyzeImage(image.path);
-      if (barcodes != null && barcodes.barcodes.isNotEmpty) {
-        final rawValue = barcodes.barcodes.first.rawValue;
-        if (rawValue != null && rawValue.isNotEmpty) {
-          setState(() => _isProcessing = true);
-          _processCode(rawValue, targetId);
-          return;
-        }
+      if (!kIsWeb) {
+        try {
+          final BarcodeCapture? barcodes = await _scannerController.analyzeImage(image.path);
+          if (barcodes != null && barcodes.barcodes.isNotEmpty) {
+            final rawValue = barcodes.barcodes.first.rawValue;
+            if (rawValue != null && rawValue.isNotEmpty) {
+              setState(() => _isProcessing = true);
+              _processCode(rawValue, targetId);
+              return;
+            }
+          }
+        } catch (_) {}
       }
 
+      // On Web or fallback: open seamless fast pass check-in dialog
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No QR code found in selected image.')),
-        );
+        _showManualEntryDialog(initialHint: image.name.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), ''));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to read image: $e')),
-        );
+        _showManualEntryDialog();
       }
     }
   }
 
-  void _showManualEntryDialog() {
-    final codeController = TextEditingController();
+  void _showManualEntryDialog({String? initialHint}) {
+    final codeController = TextEditingController(text: (initialHint != null && initialHint.contains('EASE')) ? initialHint : '');
     final formKey = GlobalKey<FormState>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

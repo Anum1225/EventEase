@@ -46,11 +46,38 @@ class EventModel {
     required this.createdAt,
   });
 
-  bool get isApproved => status == 'approved';
+  bool get hasPassedSchedule {
+    if (status == 'completed') return true;
+    if (status == 'cancelled' || status == 'rejected') return false;
+
+    final now = DateTime.now();
+    final eventDay = DateTime(date.year, date.month, date.day);
+    final today = DateTime(now.year, now.month, now.day);
+    if (eventDay.isBefore(today)) return true;
+
+    if (eventDay.isAtSameMomentAs(today)) {
+      final clean = endTime.trim().toUpperCase();
+      if (clean.contains('AM') || clean.contains('PM')) {
+        final isPm = clean.contains('PM');
+        final parts = clean.replaceAll('AM', '').replaceAll('PM', '').trim().split(':');
+        if (parts.length >= 2) {
+          var hour = int.tryParse(parts[0].trim()) ?? 0;
+          final min = int.tryParse(parts[1].trim()) ?? 0;
+          if (isPm && hour < 12) hour += 12;
+          if (!isPm && hour == 12) hour = 0;
+          final endDt = DateTime(date.year, date.month, date.day, hour, min);
+          return now.isAfter(endDt);
+        }
+      }
+    }
+    return false;
+  }
+
+  bool get isApproved => status == 'approved' && !hasPassedSchedule;
   bool get isPending => status == 'pending_approval';
   bool get isRejected => status == 'rejected';
   bool get isCancelled => status == 'cancelled';
-  bool get isCompleted => status == 'completed';
+  bool get isCompleted => status == 'completed' || hasPassedSchedule;
 
   bool get isFull => registeredCount >= maxParticipants;
   int get remainingSeats => (maxParticipants - registeredCount).clamp(0, maxParticipants);
