@@ -264,6 +264,42 @@ class EventProvider with ChangeNotifier {
     }
   }
 
+  /// Organizer/Admin: Mark event as completed
+  Future<bool> completeEvent({
+    required String eventId,
+    required String eventTitle,
+    String? organizerId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _eventRepository.completeEvent(eventId);
+
+      // Broadcast completion notice and feedback request to all registered attendees
+      await _notificationRepository.broadcastToEventParticipants(
+        eventId: eventId,
+        title: 'Event Completed! 🎉',
+        message: '"$eventTitle" has concluded. Share your experience by leaving a review and rating!',
+        type: 'event_completed',
+      );
+
+      if (organizerId != null) {
+        await loadOrganizerEvents(organizerId);
+      }
+      await loadDiscoverableEvents();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to complete event: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Admin: Load pending approvals queue
   Future<void> loadPendingApprovals() async {
     _isLoading = true;

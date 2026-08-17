@@ -221,7 +221,32 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    StatusBadge(status: reg.status),
+                    Row(
+                      children: [
+                        StatusBadge(status: reg.status),
+                        if (isCompleted) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF24221D) : const Color(0xFFEDEAE1),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.flag_rounded, size: 12, color: secondaryTextColor),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Concluded',
+                                  style: AppTypography.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: secondaryTextColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     Row(
                       children: [
                         if (isUpcoming) ...[

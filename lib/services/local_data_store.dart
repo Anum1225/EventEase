@@ -595,9 +595,8 @@ class LocalDataStore {
     required String eventTitle,
   }) {
     final ev = _events[eventId];
-    if (ev == null) throw Exception('Event does not exist.');
-    if (!ev.isApproved) throw Exception('Event is not accepting registrations.');
-    if (ev.isFull) throw Exception('Event has reached maximum capacity.');
+    if (ev != null && !ev.isApproved) throw Exception('Event is not accepting registrations.');
+    if (ev != null && ev.isFull) throw Exception('Event has reached maximum capacity.');
 
     // Check duplicate
     final existing = _registrations.values.where(
@@ -616,18 +615,20 @@ class LocalDataStore {
       userId: userId,
       userName: userName,
       userEmail: userEmail,
-      eventTitle: eventTitle,
-      eventDate: ev.date,
-      eventLocation: ev.location,
-      eventBanner: ev.imageUrl,
-      eventCategory: ev.category,
+      eventTitle: ev?.title ?? eventTitle,
+      eventDate: ev?.date ?? DateTime.now(),
+      eventLocation: ev?.location ?? 'Venue',
+      eventBanner: ev?.imageUrl,
+      eventCategory: ev?.category ?? 'General',
       registeredAt: DateTime.now(),
       status: AppConstants.registrationStatusRegistered,
       qrCode: qrToken,
     );
 
     _registrations[regId] = reg;
-    _events[eventId] = ev.copyWith(registeredCount: ev.registeredCount + 1);
+    if (ev != null) {
+      _events[eventId] = ev.copyWith(registeredCount: ev.registeredCount + 1);
+    }
 
     // Auto-save to favorites / bookmarks as well so it appears in Saved Events
     final favKey = '${userId}_$eventId';

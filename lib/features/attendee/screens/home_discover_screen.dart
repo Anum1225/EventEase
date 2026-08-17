@@ -548,6 +548,35 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
                       ),
                     ),
                   ),
+
+                // Completed Badge Overlay
+                if (event.isCompleted)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF555045) : const Color(0xFF6B6458),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.flag_rounded, size: 14, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Completed',
+                            style: AppTypography.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
 
@@ -613,13 +642,19 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        event.isFull ? 'Event is Full' : '${event.remainingSeats} seats available',
+                        event.isCompleted
+                            ? 'Event Concluded'
+                            : event.isFull
+                                ? 'Event is Full'
+                                : '${event.remainingSeats} seats available',
                         style: AppTypography.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: event.isFull
-                              ? (isDark ? AppColors.darkError : AppColors.lightError)
-                              : (isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
+                          color: event.isCompleted
+                              ? secondaryTextColor
+                              : event.isFull
+                                  ? (isDark ? AppColors.darkError : AppColors.lightError)
+                                  : (isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
                         ),
                       ),
                       Row(

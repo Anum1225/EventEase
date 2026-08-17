@@ -470,10 +470,11 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
                                       children: [
                                         StatusBadge(status: event.status),
-                                        const Spacer(),
                                         CategoryChip(category: event.category, fontSize: 10, iconSize: 11),
                                       ],
                                     ),
@@ -617,6 +618,40 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   ),
                                 ),
+                                if (event.isApproved)
+                                  OutlinedButton.icon(
+                                    icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                                    label: const Text('Mark Complete'),
+                                    onPressed: () async {
+                                      final confirm = await ConfirmationDialog.show(
+                                        context,
+                                        title: 'Mark Event as Completed?',
+                                        message: 'This will close registration for "${event.title}" and notify all registered attendees to submit their feedback.',
+                                        confirmLabel: 'Mark Complete',
+                                      );
+                                      if (confirm && context.mounted) {
+                                        final auth = context.read<AuthProvider>().currentUser;
+                                        final success = await context.read<EventProvider>().completeEvent(
+                                          eventId: event.id,
+                                          eventTitle: event.title,
+                                          organizerId: auth?.id,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(success ? 'Event marked as completed. Attendees notified!' : 'Failed to complete event'),
+                                              backgroundColor: success ? AppColors.lightSuccess : AppColors.lightError,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                      side: BorderSide(color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.4)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    ),
+                                  ),
                                 OutlinedButton.icon(
                                   icon: const Icon(Icons.cancel_outlined, size: 16),
                                   label: const Text('Cancel'),

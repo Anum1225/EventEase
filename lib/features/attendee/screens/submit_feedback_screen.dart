@@ -12,6 +12,7 @@ import '../../../models/event_model.dart';
 import '../../../repositories/event_repository.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/feedback_provider.dart';
+import '../../../providers/registration_provider.dart';
 
 class SubmitFeedbackScreen extends StatefulWidget {
   final String eventId;
@@ -29,6 +30,7 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
   EventModel? _event;
   bool _isLoading = true;
   bool _alreadySubmitted = false;
+  bool _isRegistered = false;
 
   @override
   void initState() {
@@ -45,17 +47,22 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
   Future<void> _loadEventAndStatus() async {
     final user = context.read<AuthProvider>().currentUser;
     final fbProvider = context.read<FeedbackProvider>();
+    final regProvider = context.read<RegistrationProvider>();
 
     try {
       final ev = await _eventRepo.getEventById(widget.eventId);
       if (user != null) {
         await fbProvider.checkUserFeedbackStatus(user.id, widget.eventId);
+        await regProvider.loadUserData(user.id);
       }
+
+      final registered = user != null && regProvider.isRegisteredForEvent(widget.eventId);
 
       if (mounted) {
         setState(() {
           _event = ev;
           _alreadySubmitted = fbProvider.hasSubmittedForEvent(widget.eventId);
+          _isRegistered = registered;
           _isLoading = false;
         });
       }
@@ -117,6 +124,7 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
     }
 
     final canSubmit = _event != null &&
+        _isRegistered &&
         (_event!.isCompleted ||
             _event!.status == AppConstants.eventStatusApproved ||
             _event!.date.isBefore(DateTime.now()));
@@ -130,7 +138,33 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
           padding: const EdgeInsets.all(24.0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: _alreadySubmitted
+            child: !_isRegistered
+                ? AppCard(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.person_off_rounded, size: 54, color: AppColors.lightError),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Not Authorized',
+                          style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Only registered attendees can submit feedback for this event.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.manrope(fontSize: 14, color: secondaryTextColor),
+                        ),
+                        const SizedBox(height: 24),
+                        AppButton(
+                          text: 'Go Back',
+                          onPressed: () => context.pop(),
+                        ),
+                      ],
+                    ),
+                  )
+                : _alreadySubmitted
                 ? AppCard(
                     padding: const EdgeInsets.all(28),
                     child: Column(

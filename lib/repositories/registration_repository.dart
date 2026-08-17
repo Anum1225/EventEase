@@ -234,17 +234,23 @@ class RegistrationRepository {
   }
 
   Future<List<RegistrationModel>> getUserRegistrations(String userId) async {
+    List<RegistrationModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
       try {
         final snap = await _regCol!
             .where('userId', isEqualTo: userId)
             .get();
-        var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
-        list.sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
-        return list;
+        list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
       } catch (_) {}
     }
-    return _localStore.getUserRegistrations(userId);
+    final localList = _localStore.getUserRegistrations(userId);
+    for (final loc in localList) {
+      if (!list.any((r) => r.id == loc.id || (r.eventId == loc.eventId && r.isRegistered))) {
+        list.add(loc);
+      }
+    }
+    list.sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
+    return list;
   }
 
   /// Organizer: Get all registered participants for an event

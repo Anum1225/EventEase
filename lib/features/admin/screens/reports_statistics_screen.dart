@@ -120,7 +120,63 @@ class _ReportsStatisticsScreenState extends State<ReportsStatisticsScreen> {
                           ),
                         ),
                       ],
-                    ),
+                    const SizedBox(height: 12),
+
+                    // Feedback & Satisfaction KPI
+                    if (stats != null)
+                      AppCard(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.star_rounded, size: 22, color: Colors.amber),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Overall Feedback Score',
+                                  style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                AnimatedMetricCounter(
+                                  value: stats.averageSystemRating,
+                                  isDecimal: true,
+                                  textStyle: AppTypography.manrope(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    color: primaryTextColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '/ 5.0',
+                                  style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w500, color: secondaryTextColor),
+                                ),
+                                const SizedBox(width: 16),
+                                Row(
+                                  children: List.generate(5, (i) {
+                                    final filled = i < stats.averageSystemRating.round();
+                                    return Icon(
+                                      filled ? Icons.star_rounded : Icons.star_border_rounded,
+                                      size: 20,
+                                      color: filled ? Colors.amber : secondaryTextColor,
+                                    );
+                                  }),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Aggregated from all post-event attendee reviews across the platform',
+                              style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 28),
 
                     // Animated Visual Analytics Section

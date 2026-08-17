@@ -718,28 +718,38 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     icon: Icons.qr_code_rounded,
                   ))
             : event.isCompleted
-                ? AppButton(
-                    text: 'Event Completed (Leave Feedback)',
-                    variant: AppButtonVariant.outlined,
-                    onPressed: () => context.push('/feedback/${event.id}'),
-                    icon: Icons.rate_review_rounded,
+                ? const AppButton(
+                    text: 'Registration Closed — Event Completed',
+                    onPressed: null,
+                    icon: Icons.event_busy_rounded,
                   )
                 : event.isCancelled
                     ? const AppButton(
                         text: 'Event Cancelled',
                         onPressed: null,
                       )
-                    : event.isFull
+                    : event.isPending
                         ? const AppButton(
-                            text: 'Event Full (Capacity Reached)',
+                            text: 'Pending Approval — Registration Not Open',
                             onPressed: null,
+                            icon: Icons.schedule_rounded,
                           )
-                        : AppButton(
-                            text: 'Register Now (${event.remainingSeats} left)',
-                            onPressed: _onRegisterTapped,
-                            isLoading: regProvider.isLoading,
-                            icon: Icons.how_to_reg_rounded,
-                          ),
+                        : event.isFull
+                            ? const AppButton(
+                                text: 'Event Full (Capacity Reached)',
+                                onPressed: null,
+                              )
+                            : event.isApproved
+                                ? AppButton(
+                                    text: 'Register Now (${event.remainingSeats} left)',
+                                    onPressed: _onRegisterTapped,
+                                    isLoading: regProvider.isLoading,
+                                    icon: Icons.how_to_reg_rounded,
+                                  )
+                                : const AppButton(
+                                    text: 'Registration Not Available',
+                                    onPressed: null,
+                                  ),
       ),
     );
   }

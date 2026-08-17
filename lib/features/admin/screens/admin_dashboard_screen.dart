@@ -379,6 +379,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                 isDark: isDark,
               ),
+              const SizedBox(height: 10),
+              _buildAdminActionTile(
+                title: 'My Registered Events & Tickets',
+                subtitle: 'Access your personal event passes, QR tickets, and registered list',
+                icon: Icons.confirmation_number_outlined,
+                onTap: () => context.go('/attendee/my-events'),
+                color: Colors.deepPurpleAccent,
+                isDark: isDark,
+              ),
 
               const SizedBox(height: 24),
             ],

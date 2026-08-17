@@ -93,6 +93,13 @@ class RegistrationProvider with ChangeNotifier {
     required String userEmail,
     required String eventTitle,
   }) async {
+    // Prevent duplicate registration at provider level
+    if (isRegisteredForEvent(eventId)) {
+      _errorMessage = 'You are already registered for this event.';
+      notifyListeners();
+      return null;
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

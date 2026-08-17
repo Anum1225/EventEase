@@ -83,8 +83,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       _loadFavorites();
       return;
     }
+
+    final currentFavIds = regProvider.favoriteEventIds;
+
+    // Remove cached events that are no longer favorited
+    _cachedEvents.removeWhere((e) => !currentFavIds.contains(e.id));
+
+    // Fetch any missing events that are favorited but not yet cached
     final existingIds = _cachedEvents.map((e) => e.id).toSet();
-    final missingIds = regProvider.favoriteEventIds.difference(existingIds);
+    final missingIds = currentFavIds.difference(existingIds);
+
     if (missingIds.isNotEmpty && !_isFetching) {
       _fetchMissingEvents(missingIds);
     }
