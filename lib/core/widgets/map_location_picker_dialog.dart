@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import 'app_button.dart';
@@ -24,7 +27,7 @@ class LocationSuggestion {
   });
 }
 
-/// Commercial-grade OpenStreetMap & Google Maps Location Picker Dialog
+/// Commercial-grade OpenStreetMap & Google Maps Location Picker Dialog with Real-Time Global Search & Reverse-Geocoding
 class MapLocationPickerDialog extends StatefulWidget {
   final String? initialLocation;
 
@@ -53,7 +56,12 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
   late TextEditingController _searchController;
   final FocusNode _searchFocusNode = FocusNode();
 
-  static const List<LocationSuggestion> _allVenues = [
+  Timer? _searchDebounceTimer;
+  Timer? _reverseGeocodeDebounceTimer;
+  bool _isSearching = false;
+  bool _isReverseGeocoding = false;
+
+  static const List<LocationSuggestion> _localVenues = [
     // --- KARACHI ---
     LocationSuggestion(
       name: 'Karachi Expo Centre',
@@ -290,44 +298,6 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
       lng: 73.0890,
       category: 'Luxury Banquet',
     ),
-
-    // --- HYDERABAD, SUKKUR & OTHERS ---
-    LocationSuggestion(
-      name: 'Indus Hotel & Banquets',
-      address: 'Thandi Sarak, Hyderabad',
-      city: 'Hyderabad',
-      province: 'Sindh',
-      lat: 25.3960,
-      lng: 68.3578,
-      category: 'Hotel & Conference',
-    ),
-    LocationSuggestion(
-      name: 'Sukkur IBA Convention Center',
-      address: 'Nisar Ahmed Siddiqui Road, Sukkur',
-      city: 'Sukkur',
-      province: 'Sindh',
-      lat: 27.7240,
-      lng: 68.8220,
-      category: 'Auditorium Complex',
-    ),
-    LocationSuggestion(
-      name: 'Pearl Continental Hotel Muzaffarabad',
-      address: 'Upper Chattar, Muzaffarabad AJK',
-      city: 'Muzaffarabad',
-      province: 'Azad Kashmir',
-      lat: 34.3650,
-      lng: 73.4720,
-      category: 'Resort Ballroom',
-    ),
-    LocationSuggestion(
-      name: 'Serena Hotel Gilgit',
-      address: 'Jutial, Gilgit',
-      city: 'Gilgit',
-      province: 'Gilgit-Baltistan',
-      lat: 35.9180,
-      lng: 74.3310,
-      category: 'Hotel Conference Hall',
-    ),
   ];
 
   late String _selectedVenueName;
@@ -336,7 +306,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
   late String _selectedProvince;
   late double _currentLat;
   late double _currentLng;
-  int _osmZoom = 13;
+  int _osmZoom = 14;
   String _mapMode = 'osm'; // 'osm' (Street) or 'satellite' (Esri World Imagery)
   List<LocationSuggestion> _searchResults = [];
   bool _showSuggestions = false;
@@ -346,12 +316,12 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
     super.initState();
     _searchController = TextEditingController(text: widget.initialLocation ?? '');
 
-    final matched = _allVenues.firstWhere(
+    final matched = _localVenues.firstWhere(
       (v) => (widget.initialLocation != null &&
           (widget.initialLocation!.toLowerCase().contains(v.name.toLowerCase()) ||
               widget.initialLocation!.toLowerCase().contains(v.city.toLowerCase()) ||
               v.name.toLowerCase().contains(widget.initialLocation!.toLowerCase()))),
-      orElse: () => _allVenues.first,
+      orElse: () => _localVenues.first,
     );
 
     _selectedVenueName = widget.initialLocation?.isNotEmpty == true
@@ -368,33 +338,100 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
+    _reverseGeocodeDebounceTimer?.cancel();
     _searchController.removeListener(_onSearchQueryChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
+  /// Live Global Search Engine: combines instant local matching with live OpenStreetMap Nominatim geocoding
   void _onSearchQueryChanged() {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim();
+    _searchDebounceTimer?.cancel();
+
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
         _showSuggestions = false;
+        _isSearching = false;
       });
       return;
     }
 
-    final matches = _allVenues.where((v) {
-      return v.name.toLowerCase().contains(query) ||
-          v.city.toLowerCase().contains(query) ||
-          v.address.toLowerCase().contains(query) ||
-          v.province.toLowerCase().contains(query) ||
-          v.category.toLowerCase().contains(query);
-    }).take(6).toList();
+    // 1. Immediate instant local suggestions
+    final qLower = query.toLowerCase();
+    final localMatches = _localVenues.where((v) {
+      return v.name.toLowerCase().contains(qLower) ||
+          v.city.toLowerCase().contains(qLower) ||
+          v.address.toLowerCase().contains(qLower) ||
+          v.province.toLowerCase().contains(qLower) ||
+          v.category.toLowerCase().contains(qLower);
+    }).take(4).toList();
 
     setState(() {
-      _searchResults = matches;
-      _showSuggestions = matches.isNotEmpty;
+      _searchResults = localMatches;
+      _showSuggestions = localMatches.isNotEmpty;
+      _isSearching = true;
+    });
+
+    // 2. Fetch live global OpenStreetMap Nominatim search results with debounce
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 320), () async {
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=8'
+        );
+        final response = await http.get(url, headers: {
+          'User-Agent': 'EventEase-Pakistan-App/2.0',
+          'Accept': 'application/json',
+        }).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200 && mounted) {
+          final List<dynamic> data = jsonDecode(response.body);
+          final remoteResults = <LocationSuggestion>[];
+
+          for (final item in data) {
+            final lat = double.tryParse(item['lat']?.toString() ?? '') ?? 0.0;
+            final lon = double.tryParse(item['lon']?.toString() ?? '') ?? 0.0;
+            if (lat == 0.0 && lon == 0.0) continue;
+
+            final displayName = item['display_name']?.toString() ?? '';
+            final parts = displayName.split(',');
+            final name = parts.isNotEmpty ? parts[0].trim() : query;
+            final address = parts.length > 1 ? parts.sublist(1).take(3).join(',').trim() : displayName;
+            final addr = item['address'] as Map<String, dynamic>?;
+            final city = addr?['city'] ?? addr?['town'] ?? addr?['suburb'] ?? addr?['county'] ?? (parts.length > 1 ? parts[1].trim() : 'Pakistan');
+            final state = addr?['state'] ?? addr?['country'] ?? 'Pakistan';
+
+            remoteResults.add(LocationSuggestion(
+              name: name,
+              address: address.isNotEmpty ? address : name,
+              city: city.toString(),
+              province: state.toString(),
+              lat: lat,
+              lng: lon,
+              category: item['type']?.toString() ?? 'Location',
+            ));
+          }
+
+          if (mounted && _searchController.text.trim() == query) {
+            final combined = <LocationSuggestion>[...localMatches];
+            for (final r in remoteResults) {
+              if (!combined.any((c) => (c.lat - r.lat).abs() < 0.001 && (c.lng - r.lng).abs() < 0.001)) {
+                combined.add(r);
+              }
+            }
+            setState(() {
+              _searchResults = combined.take(8).toList();
+              _showSuggestions = _searchResults.isNotEmpty;
+              _isSearching = false;
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isSearching = false);
+      }
     });
   }
 
@@ -408,51 +445,84 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
       _currentLng = venue.lng;
       _searchController.text = venue.name;
       _showSuggestions = false;
-      _osmZoom = 14;
+      _osmZoom = 15;
     });
     _searchFocusNode.unfocus();
+  }
+
+  /// Live Reverse Geocoding: resolves exact area, road, suburb, and city coordinates just like Google Maps
+  void _triggerReverseGeocode(double lat, double lng) {
+    _reverseGeocodeDebounceTimer?.cancel();
+    _reverseGeocodeDebounceTimer = Timer(const Duration(milliseconds: 280), () async {
+      setState(() => _isReverseGeocoding = true);
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&addressdetails=1&zoom=18'
+        );
+        final response = await http.get(url, headers: {
+          'User-Agent': 'EventEase-Pakistan-App/2.0',
+          'Accept': 'application/json',
+        }).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200 && mounted) {
+          final data = jsonDecode(response.body);
+          final displayName = data['display_name']?.toString() ?? '';
+          final addr = data['address'] as Map<String, dynamic>?;
+
+          final road = addr?['road'] ?? addr?['street'];
+          final suburb = addr?['suburb'] ?? addr?['neighbourhood'] ?? addr?['quarter'] ?? addr?['residential'];
+          final city = addr?['city'] ?? addr?['town'] ?? addr?['village'] ?? addr?['county'] ?? 'Pakistan';
+          final state = addr?['state'] ?? addr?['province'] ?? 'Pakistan';
+
+          String name = '';
+          if (road != null && suburb != null) {
+            name = '$road, $suburb';
+          } else if (suburb != null) {
+            name = '$suburb, $city';
+          } else if (road != null) {
+            name = '$road, $city';
+          } else if (displayName.isNotEmpty) {
+            name = displayName.split(',').take(2).join(',').trim();
+          } else {
+            name = '$city Area';
+          }
+
+          final fullAddress = displayName.isNotEmpty
+              ? displayName.split(',').take(4).join(',').trim()
+              : '$name, $city, $state';
+
+          setState(() {
+            _selectedVenueName = name;
+            _selectedVenueAddress = fullAddress;
+            _selectedCity = city.toString();
+            _selectedProvince = state.toString();
+            _isReverseGeocoding = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isReverseGeocoding = false);
+      }
+    });
   }
 
   void _onMapTapped(TapUpDetails details, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final relativeOffset = (details.localPosition - center);
 
-    // Slippy Map Mercator coordinates
     final scale = 256.0 * (1 << _osmZoom);
     final dLng = (relativeOffset.dx / scale) * 360.0;
     final dLat = -(relativeOffset.dy / scale) * 180.0;
 
-    final tappedLng = (_currentLng + dLng).clamp(60.0, 78.5);
-    final tappedLat = (_currentLat + dLat).clamp(23.0, 37.5);
-
-    // Find nearest registered landmark
-    LocationSuggestion closest = _allVenues.first;
-    double minDistance = double.infinity;
-    for (final v in _allVenues) {
-      final d = math.sqrt(math.pow(v.lat - tappedLat, 2) + math.pow(v.lng - tappedLng, 2));
-      if (d < minDistance) {
-        minDistance = d;
-        closest = v;
-      }
-    }
+    final tappedLng = (_currentLng + dLng).clamp(-180.0, 180.0);
+    final tappedLat = (_currentLat + dLat).clamp(-85.0, 85.0);
 
     setState(() {
       _currentLat = tappedLat;
       _currentLng = tappedLng;
-      if (minDistance < 0.05) {
-        _selectedVenueName = closest.name;
-        _selectedVenueAddress = closest.address;
-        _selectedCity = closest.city;
-        _selectedProvince = closest.province;
-      } else {
-        _selectedCity = closest.city;
-        _selectedProvince = closest.province;
-        _selectedVenueName = 'Selected Location near ${closest.city}';
-        _selectedVenueAddress = '${closest.city}, ${closest.province}, Pakistan';
-      }
-      _searchController.text = _selectedVenueName;
       _showSuggestions = false;
     });
+
+    _triggerReverseGeocode(tappedLat, tappedLng);
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -461,21 +531,25 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
     final dLat = (details.delta.dy / scale) * 180.0;
 
     setState(() {
-      _currentLng = (_currentLng + dLng).clamp(60.0, 78.5);
-      _currentLat = (_currentLat + dLat).clamp(23.0, 37.5);
+      _currentLng = (_currentLng + dLng).clamp(-180.0, 180.0);
+      _currentLat = (_currentLat + dLat).clamp(-85.0, 85.0);
       _showSuggestions = false;
     });
   }
 
+  void _onPanEnd(DragEndDetails details) {
+    _triggerReverseGeocode(_currentLat, _currentLng);
+  }
+
   void _zoomIn() {
     setState(() {
-      _osmZoom = (_osmZoom + 1).clamp(5, 18);
+      _osmZoom = (_osmZoom + 1).clamp(4, 19);
     });
   }
 
   void _zoomOut() {
     setState(() {
-      _osmZoom = (_osmZoom - 1).clamp(5, 18);
+      _osmZoom = (_osmZoom - 1).clamp(4, 19);
     });
   }
 
@@ -536,7 +610,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
                           ),
                         ),
                         Text(
-                          'Search a venue or drag the map to position the pin marker',
+                          'Search any place worldwide or drag the map to locate the venue',
                           style: AppTypography.manrope(
                             fontSize: 11.5,
                             color: secondaryTextColor,
@@ -554,7 +628,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
               ),
             ),
 
-            // Search Bar with Live Suggestions Dropdown
+            // Search Bar with Live Global Autocomplete Suggestions
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               color: isDark ? const Color(0xFF161924) : Colors.white,
@@ -566,9 +640,18 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
                     focusNode: _searchFocusNode,
                     style: AppTypography.manrope(fontSize: 13.5, color: primaryTextColor),
                     decoration: InputDecoration(
-                      hintText: 'Search city, venue, or address (e.g. Karachi, Lahore, PC Hotel...)',
+                      hintText: 'Search any city, street, or landmark (e.g. Karachi, Lahore, G-11 Islamabad...)',
                       hintStyle: AppTypography.manrope(fontSize: 12.5, color: secondaryTextColor),
-                      prefixIcon: Icon(Icons.search, size: 18, color: accentColor),
+                      prefixIcon: _isSearching
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : Icon(Icons.search, size: 18, color: accentColor),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 16),
@@ -598,13 +681,14 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
             Expanded(
               child: Stack(
                 children: [
-                  // 1. Live Real OpenStreetMap / Satellite Slippy Tiles
+                  // 1. Live Slippy Map Tiles (OpenStreetMap Street or Esri Satellite)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final mapSize = Size(constraints.maxWidth, constraints.maxHeight);
                       return GestureDetector(
                         onTapUp: (details) => _onMapTapped(details, mapSize),
                         onPanUpdate: _onPanUpdate,
+                        onPanEnd: _onPanEnd,
                         child: ClipRect(
                           child: Stack(
                             children: [
@@ -625,14 +709,14 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
                                   children: [
                                     // Location Tooltip Callout
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                       decoration: BoxDecoration(
                                         color: Colors.black87,
                                         borderRadius: BorderRadius.circular(8),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withValues(alpha: 0.4),
-                                            blurRadius: 6,
+                                            blurRadius: 8,
                                             offset: const Offset(0, 2),
                                           ),
                                         ],
@@ -640,10 +724,20 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.place_rounded, size: 12, color: Colors.amber),
+                                          if (_isReverseGeocoding)
+                                            const Padding(
+                                              padding: EdgeInsets.only(right: 6),
+                                              child: SizedBox(
+                                                width: 10,
+                                                height: 10,
+                                                child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.amber),
+                                              ),
+                                            )
+                                          else
+                                            const Icon(Icons.place_rounded, size: 13, color: Colors.amber),
                                           const SizedBox(width: 4),
                                           ConstrainedBox(
-                                            constraints: const BoxConstraints(maxWidth: 180),
+                                            constraints: const BoxConstraints(maxWidth: 220),
                                             child: Text(
                                               _selectedVenueName,
                                               style: const TextStyle(
@@ -722,18 +816,18 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog> {
                     },
                   ),
 
-                  // 2. Autocomplete Suggestions Overlay List
+                  // 2. Live Global Autocomplete Suggestions Overlay
                   if (_showSuggestions && _searchResults.isNotEmpty)
                     Positioned(
                       top: 0,
                       left: 16,
                       right: 16,
                       child: Material(
-                        elevation: 12,
+                        elevation: 14,
                         borderRadius: BorderRadius.circular(12),
                         color: isDark ? const Color(0xFF1E2232) : Colors.white,
                         child: Container(
-                          constraints: const BoxConstraints(maxHeight: 220),
+                          constraints: const BoxConstraints(maxHeight: 240),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
