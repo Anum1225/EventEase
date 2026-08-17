@@ -64,7 +64,7 @@ class ContactRepository {
     List<ContactMessageModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _contactCol != null) {
       try {
-        final snap = await _contactCol!.orderBy('submittedAt', descending: true).get().timeout(const Duration(milliseconds: 2000));
+        final snap = await _contactCol!.get().timeout(const Duration(seconds: 4));
         if (snap.docs.isNotEmpty) {
           list = snap.docs.map((d) => ContactMessageModel.fromFirestore(d)).toList();
         }

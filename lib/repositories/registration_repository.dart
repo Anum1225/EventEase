@@ -301,17 +301,29 @@ class RegistrationRepository {
       try {
         if (eventId.isEmpty || eventId == 'all') {
           final snap = await _regCol!
-              .orderBy('registeredAt', descending: false)
               .get()
-              .timeout(const Duration(milliseconds: 2500));
+              .timeout(const Duration(milliseconds: 3000));
           list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
         } else {
+          // Direct query by eventId without orderBy to avoid requiring composite indexes
           final snap = await _regCol!
               .where('eventId', isEqualTo: eventId)
-              .orderBy('registeredAt', descending: false)
               .get()
-              .timeout(const Duration(milliseconds: 2500));
+              .timeout(const Duration(milliseconds: 3000));
           list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+
+          // Fallback: match by title or case-insensitive eventId if direct lookup is empty
+          if (list.isEmpty) {
+            final snapAll = await _regCol!
+                .get()
+                .timeout(const Duration(milliseconds: 3000));
+            final all = snapAll.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+            list = all.where((r) =>
+                r.eventId == eventId ||
+                r.eventId.toLowerCase().trim() == eventId.toLowerCase().trim() ||
+                (r.eventTitle != null && r.eventTitle!.toLowerCase().trim() == eventId.toLowerCase().trim())
+            ).toList();
+          }
         }
       } catch (_) {}
     }

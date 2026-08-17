@@ -1133,6 +1133,7 @@ class LocalDataStore {
     if (ev == null) {
       for (final e in _events.values) {
         if (e.id == eventId ||
+            e.id.toLowerCase().trim() == eventId.toLowerCase().trim() ||
             e.title.trim().toLowerCase() == eventId.trim().toLowerCase()) {
           ev = e;
           break;
@@ -1140,8 +1141,11 @@ class LocalDataStore {
       }
     }
 
+    final cleanId = eventId.toLowerCase().trim();
     final list = _registrations.values.where((r) {
       if (r.eventId == eventId) return true;
+      if (r.eventId.toLowerCase().trim() == cleanId) return true;
+      if ((r.eventTitle ?? '').toLowerCase().trim() == cleanId) return true;
       if (ev != null && (r.eventId == ev.id || (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim())) return true;
       return false;
     }).toList();
