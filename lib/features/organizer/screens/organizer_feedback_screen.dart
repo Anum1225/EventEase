@@ -125,7 +125,17 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTypography.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {

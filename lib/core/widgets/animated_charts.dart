@@ -179,12 +179,20 @@ class _ModernAnimatedBarChartState extends State<ModernAnimatedBarChart>
                                   duration: const Duration(milliseconds: 300),
                                   opacity: _animation.value > 0.6 ? 1.0 : 0.0,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
                                     margin: const EdgeInsets.only(bottom: 4),
                                     decoration: isHovered
                                         ? BoxDecoration(
-                                            color: primaryColor,
-                                            borderRadius: BorderRadius.circular(4),
+                                            color: isDark ? const Color(0xFF2D3748) : primaryColor,
+                                            borderRadius: BorderRadius.circular(5),
+                                            border: isDark ? Border.all(color: const Color(0xFF4A5568), width: 1) : null,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           )
                                         : null,
                                     child: Text(
@@ -194,7 +202,7 @@ class _ModernAnimatedBarChartState extends State<ModernAnimatedBarChart>
                                         fontWeight: FontWeight.w700,
                                         color: isHovered
                                             ? Colors.white
-                                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                            : (isDark ? const Color(0xFF94A3B8) : AppColors.lightTextSecondary),
                                       ),
                                     ),
                                   ),
@@ -217,7 +225,7 @@ class _ModernAnimatedBarChartState extends State<ModernAnimatedBarChart>
                                       boxShadow: isHovered
                                           ? [
                                               BoxShadow(
-                                                color: primaryColor.withValues(alpha: 0.5),
+                                                color: (isDark ? const Color(0xFF6366F1) : primaryColor).withValues(alpha: 0.5),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, -2),
                                               ),

@@ -202,7 +202,17 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTypography.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
