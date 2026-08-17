@@ -32,7 +32,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<RegistrationProvider>().loadUserData(user.id);
+        context.read<RegistrationProvider>().loadUserData(user.id, user.email);
       }
     });
   }

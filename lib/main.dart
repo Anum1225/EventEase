@@ -26,6 +26,7 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      await LocalDataStore().syncFromFirestore();
     } catch (e) {
       debugPrint('Firebase initialization note: $e');
     }

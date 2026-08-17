@@ -233,7 +233,7 @@ class RegistrationRepository {
     return Stream.value(_localStore.getUserRegistrations(userId));
   }
 
-  Future<List<RegistrationModel>> getUserRegistrations(String userId) async {
+  Future<List<RegistrationModel>> getUserRegistrations(String userId, [String? userEmail]) async {
     List<RegistrationModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
       try {
@@ -243,7 +243,7 @@ class RegistrationRepository {
         list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
       } catch (_) {}
     }
-    final localList = _localStore.getUserRegistrations(userId);
+    final localList = _localStore.getUserRegistrations(userId, userEmail);
     for (final loc in localList) {
       if (!list.any((r) => r.id == loc.id || (r.eventId == loc.eventId && r.isRegistered))) {
         list.add(loc);

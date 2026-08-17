@@ -65,14 +65,14 @@ class RegistrationProvider with ChangeNotifier {
 
   bool isEventFavorited(String eventId) => _favoriteEventIds.contains(eventId);
 
-  Future<void> loadUserData(String userId) async {
+  Future<void> loadUserData(String userId, [String? userEmail]) async {
     if (_registrations.isEmpty) {
       _isLoading = true;
       notifyListeners();
     }
 
     try {
-      final regs = await _registrationRepository.getUserRegistrations(userId);
+      final regs = await _registrationRepository.getUserRegistrations(userId, userEmail);
       final favs = await _favoriteRepository.getUserFavorites(userId);
       _registrations = regs;
       _favoriteEventIds = favs.map((f) => f.eventId).toSet();

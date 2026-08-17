@@ -36,7 +36,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<EventProvider>().loadOrganizerEvents(user.id);
+        context.read<EventProvider>().loadOrganizerEvents(user.id, user.email);
       }
     });
   }
@@ -212,7 +212,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           if (user != null) {
-            await eventProvider.loadOrganizerEvents(user.id);
+            await eventProvider.loadOrganizerEvents(user.id, user.email);
           }
         },
         child: SingleChildScrollView(

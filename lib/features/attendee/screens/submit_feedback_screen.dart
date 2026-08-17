@@ -53,7 +53,7 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
       final ev = await _eventRepo.getEventById(widget.eventId);
       if (user != null) {
         await fbProvider.checkUserFeedbackStatus(user.id, widget.eventId);
-        await regProvider.loadUserData(user.id);
+        await regProvider.loadUserData(user.id, user.email);
       }
 
       final registered = user != null && regProvider.isRegisteredForEvent(widget.eventId);

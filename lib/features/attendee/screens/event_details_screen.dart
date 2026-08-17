@@ -50,7 +50,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     try {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        await context.read<RegistrationProvider>().loadUserData(user.id);
+        await context.read<RegistrationProvider>().loadUserData(user.id, user.email);
       }
 
       final eventRepo = EventRepository();

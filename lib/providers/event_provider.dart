@@ -175,13 +175,13 @@ class EventProvider with ChangeNotifier {
   }
 
   /// Organizer: Load events owned by this organizer
-  Future<void> loadOrganizerEvents(String organizerId) async {
+  Future<void> loadOrganizerEvents(String organizerId, [String? organizerEmail]) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _organizerEvents = await _eventRepository.getOrganizerEvents(organizerId);
+      _organizerEvents = await _eventRepository.getOrganizerEvents(organizerId, organizerEmail);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -213,7 +213,7 @@ class EventProvider with ChangeNotifier {
 
       final newEvent = event.copyWith(imageUrl: imageUrl);
       await _eventRepository.createEvent(newEvent);
-      await loadOrganizerEvents(event.organizerId);
+      await loadOrganizerEvents(event.organizerId, event.organizerEmail);
 
       _isLoading = false;
       notifyListeners();

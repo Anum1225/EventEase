@@ -35,7 +35,7 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
       context.read<EventProvider>().loadDiscoverableEvents();
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<RegistrationProvider>().loadUserData(user.id);
+        context.read<RegistrationProvider>().loadUserData(user.id, user.email);
       }
     });
   }

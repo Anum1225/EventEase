@@ -35,8 +35,8 @@ class EventRepository {
     return _localStore.getApprovedEvents(category: category, query: searchQuery);
   }
 
-  List<EventModel> getOrganizerEventsSync(String organizerId) {
-    return _localStore.getEventsByOrganizer(organizerId);
+  List<EventModel> getOrganizerEventsSync(String organizerId, [String? organizerEmail]) {
+    return _localStore.getEventsByOrganizer(organizerId, organizerEmail);
   }
 
   List<EventModel> getPendingApprovalEventsSync() {
@@ -144,20 +144,21 @@ class EventRepository {
     return Stream.value(_localStore.getEventsByOrganizer(organizerId));
   }
 
-  Future<List<EventModel>> getOrganizerEvents(String organizerId) async {
+  Future<List<EventModel>> getOrganizerEvents(String organizerId, [String? organizerEmail]) async {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
       try {
         final snap = await _eventsCol!
             .where('organizerId', isEqualTo: organizerId)
-            .orderBy('createdAt', descending: true)
             .get()
             .timeout(const Duration(milliseconds: 2500));
         if (snap.docs.isNotEmpty) {
-          return snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
+          final events = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
+          events.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return events;
         }
       } catch (_) {}
     }
-    return _localStore.getEventsByOrganizer(organizerId);
+    return _localStore.getEventsByOrganizer(organizerId, organizerEmail);
   }
 
   /// Organizer: Create event (always defaults to pending_approval)
