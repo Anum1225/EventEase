@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -6,6 +7,8 @@ import 'app_button.dart';
 class LocationSuggestion {
   final String name;
   final String address;
+  final String city;
+  final String province;
   final double lat;
   final double lng;
   final String category;
@@ -13,13 +16,15 @@ class LocationSuggestion {
   const LocationSuggestion({
     required this.name,
     required this.address,
+    required this.city,
+    required this.province,
     required this.lat,
     required this.lng,
     required this.category,
   });
 }
 
-/// Custom interactive Google Maps Location/Area Picker popup with Dark & Light mode compatibility
+/// Comprehensive interactive Google Maps Pakistan Location Picker popup
 class MapLocationPickerDialog extends StatefulWidget {
   final String? initialLocation;
 
@@ -34,7 +39,7 @@ class MapLocationPickerDialog extends StatefulWidget {
       barrierDismissible: true,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         child: MapLocationPickerDialog(initialLocation: initialLocation),
       ),
     );
@@ -49,72 +54,492 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
   late TextEditingController _searchController;
   late AnimationController _pulseController;
 
-  static const List<LocationSuggestion> _defaultVenues = [
-    LocationSuggestion(
-      name: 'Convention Centre Islamabad',
-      address: 'Club Road, Rawal Lake Promenade, Islamabad',
-      lat: 33.7088,
-      lng: 73.1097,
-      category: 'Conference Hall',
-    ),
-    LocationSuggestion(
-      name: 'Expo Centre Lahore',
-      address: '1A Abdul Haque Rd, Trade Centre Commercial Area Phase 2 Johar Town, Lahore',
-      lat: 31.4682,
-      lng: 74.2694,
-      category: 'Exhibition Ground',
-    ),
+  // Complete nationwide Pakistan venues, cities, halls and event centers
+  static const List<LocationSuggestion> _allPakistanVenues = [
+    // --- KARACHI & SINDH ---
     LocationSuggestion(
       name: 'Karachi Expo Centre',
       address: 'Main University Rd, Gulshan-e-Iqbal, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
       lat: 24.9089,
       lng: 67.0784,
       category: 'Convention Center',
     ),
     LocationSuggestion(
-      name: 'Serena Hotel Islamabad',
-      address: 'Khayaban-e-Suhrawardy, G-5/1, Islamabad',
-      lat: 33.7202,
-      lng: 73.0984,
-      category: 'Luxury Ballroom',
+      name: 'Karachi Marriott Hotel',
+      address: '9 Abdullah Haroon Rd, Civil Lines, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8488,
+      lng: 67.0272,
+      category: 'Grand Ballroom',
     ),
     LocationSuggestion(
-      name: 'FAST-NUCES Auditorium',
-      address: 'A.K. Brohi Road, H-11/4, Islamabad',
-      lat: 33.6555,
-      lng: 73.0153,
-      category: 'Tech Campus',
+      name: 'Pearl Continental Hotel Karachi',
+      address: 'Club Road, Civil Lines, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8465,
+      lng: 67.0245,
+      category: '5-Star Hotel Hall',
+    ),
+    LocationSuggestion(
+      name: 'Mövenpick Hotel Karachi',
+      address: 'Club Road, Civil Lines, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8492,
+      lng: 67.0298,
+      category: 'Exhibition & Banquet',
+    ),
+    LocationSuggestion(
+      name: 'Arts Council of Pakistan Karachi',
+      address: 'M.R. Kiyani Road, Saddar, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8569,
+      lng: 67.0223,
+      category: 'Auditorium & Theater',
+    ),
+    LocationSuggestion(
+      name: 'PAF Museum Convention Hall',
+      address: 'Shahrah-e-Faisal, Karsaz, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8872,
+      lng: 67.0989,
+      category: 'Convention Hall',
+    ),
+    LocationSuggestion(
+      name: 'Beach Luxury Hotel',
+      address: 'Moulvi Tamizuddin Khan Rd, Lalazar, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8402,
+      lng: 67.0011,
+      category: 'Waterfront Pavilion',
+    ),
+    LocationSuggestion(
+      name: 'IBA Karachi Main Campus Hall',
+      address: 'University Road, Karachi University Enclave, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.9422,
+      lng: 67.1139,
+      category: 'Academic Auditorium',
+    ),
+    LocationSuggestion(
+      name: 'Clifton Beach Arena',
+      address: 'Sea View Road, Clifton Block 4, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8012,
+      lng: 67.0305,
+      category: 'Outdoor Festival Arena',
+    ),
+    LocationSuggestion(
+      name: 'Port Grand Event Village',
+      address: 'Opposite PNSC Building, M.T. Khan Road, Karachi',
+      city: 'Karachi',
+      province: 'Sindh',
+      lat: 24.8385,
+      lng: 66.9942,
+      category: 'Waterfront Event Space',
+    ),
+    LocationSuggestion(
+      name: 'Hyderabad Club Hall',
+      address: 'Club Road, Cantt, Hyderabad',
+      city: 'Hyderabad',
+      province: 'Sindh',
+      lat: 25.3960,
+      lng: 68.3578,
+      category: 'Banquet & Lawn',
+    ),
+    LocationSuggestion(
+      name: 'Sukkur IBA Convention Center',
+      address: 'Airport Road, Sukkur',
+      city: 'Sukkur',
+      province: 'Sindh',
+      lat: 27.7244,
+      lng: 68.8228,
+      category: 'Convention Center',
+    ),
+    LocationSuggestion(
+      name: 'Larkana Arts Council Hall',
+      address: 'Station Road, Larkana',
+      city: 'Larkana',
+      province: 'Sindh',
+      lat: 27.5590,
+      lng: 68.2120,
+      category: 'Auditorium',
+    ),
+
+    // --- LAHORE & PUNJAB ---
+    LocationSuggestion(
+      name: 'Expo Centre Lahore',
+      address: '1A Abdul Haque Rd, Trade Centre Commercial Area, Johar Town, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.4682,
+      lng: 74.2694,
+      category: 'Mega Exhibition Ground',
+    ),
+    LocationSuggestion(
+      name: 'Pearl Continental Hotel Lahore',
+      address: 'Shahrah-e-Quaid-e-Azam, Mall Road, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.5546,
+      lng: 74.3312,
+      category: '5-Star Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Faletti\'s Hotel Lahore',
+      address: '24 Egerton Rd, Garhi Shahu, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.5615,
+      lng: 74.3275,
+      category: 'Heritage Banquet Hall',
+    ),
+    LocationSuggestion(
+      name: 'Royal Palm Golf & Country Club',
+      address: '52 Canal Bank Road, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.5645,
+      lng: 74.3752,
+      category: 'Luxury Marquee & Golf Lawn',
+    ),
+    LocationSuggestion(
+      name: 'Nishat Hotel Grand Hall',
+      address: 'Abdul Haque Rd, Commercial Area Phase 2 Johar Town, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.4690,
+      lng: 74.2680,
+      category: 'Grand Banquet',
+    ),
+    LocationSuggestion(
+      name: 'Alhamra Arts Council Lahore',
+      address: '68 Shahrah-e-Quaid-e-Azam, Mall Road, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.5580,
+      lng: 74.3250,
+      category: 'Cultural Center & Theater',
     ),
     LocationSuggestion(
       name: 'LUMS Executive Center',
       address: 'DHA Phase 5, Cantt, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
       lat: 31.4704,
       lng: 74.4111,
-      category: 'Academic Venue',
+      category: 'Executive Conference Hall',
     ),
     LocationSuggestion(
-      name: 'Pearl Continental Rawalpindi',
-      address: 'Mall Road, Rawalpindi Cantt',
+      name: 'Garrison Golf & Country Club',
+      address: 'Saddar, Cantt, Lahore',
+      city: 'Lahore',
+      province: 'Punjab',
+      lat: 31.5200,
+      lng: 74.3850,
+      category: 'Grand Lawn & Marquee',
+    ),
+    LocationSuggestion(
+      name: 'Serena Hotel Faisalabad',
+      address: 'Club Road, Civil Lines, Faisalabad',
+      city: 'Faisalabad',
+      province: 'Punjab',
+      lat: 31.4180,
+      lng: 73.0790,
+      category: 'Luxury Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Faisalabad Arts Council',
+      address: 'Club Road, Faisalabad',
+      city: 'Faisalabad',
+      province: 'Punjab',
+      lat: 31.4210,
+      lng: 73.0820,
+      category: 'Auditorium',
+    ),
+    LocationSuggestion(
+      name: 'Ramada by Wyndham Multan',
+      address: '76 Abdali Road, Multan Cantt',
+      city: 'Multan',
+      province: 'Punjab',
+      lat: 30.1984,
+      lng: 71.4687,
+      category: 'Convention & Banquet Hall',
+    ),
+    LocationSuggestion(
+      name: 'Multan Arts Council Complex',
+      address: 'MDA Complex, Multan',
+      city: 'Multan',
+      province: 'Punjab',
+      lat: 30.1920,
+      lng: 71.4650,
+      category: 'Auditorium',
+    ),
+    LocationSuggestion(
+      name: 'Sialkot Garrison Banquet Complex',
+      address: 'Tariq Road, Sialkot Cantt',
+      city: 'Sialkot',
+      province: 'Punjab',
+      lat: 32.5030,
+      lng: 74.5380,
+      category: 'Convention Hall',
+    ),
+    LocationSuggestion(
+      name: 'Gujranwala Chamber of Commerce Hall',
+      address: 'Trust Plaza, G.T. Road, Gujranwala',
+      city: 'Gujranwala',
+      province: 'Punjab',
+      lat: 32.1600,
+      lng: 74.1850,
+      category: 'Business Center',
+    ),
+
+    // --- ISLAMABAD & RAWALPINDI ---
+    LocationSuggestion(
+      name: 'Jinnah Convention Centre',
+      address: 'Club Road, Murree Road Interchange, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.7088,
+      lng: 73.1097,
+      category: 'National Convention Centre',
+    ),
+    LocationSuggestion(
+      name: 'Serena Hotel Islamabad',
+      address: 'Khayaban-e-Suhrawardy, Sector G-5/1, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.7202,
+      lng: 73.0984,
+      category: 'Luxury Ballroom & Gardens',
+    ),
+    LocationSuggestion(
+      name: 'Islamabad Marriott Hotel',
+      address: 'Aga Khan Road, Sector F-5/1, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.7310,
+      lng: 73.0840,
+      category: '5-Star Banquet Hall',
+    ),
+    LocationSuggestion(
+      name: 'Pak-China Friendship Centre',
+      address: 'Garden Avenue, Shakarparian, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.6960,
+      lng: 73.0870,
+      category: 'International Exhibition Arena',
+    ),
+    LocationSuggestion(
+      name: 'Lok Virsa Heritage Hall',
+      address: 'Garden Avenue, Shakarparian Hills, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.6920,
+      lng: 73.0760,
+      category: 'Cultural Amphitheater',
+    ),
+    LocationSuggestion(
+      name: 'FAST-NUCES Auditorium',
+      address: 'A.K. Brohi Road, Sector H-11/4, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.6555,
+      lng: 73.0153,
+      category: 'Tech Campus Hall',
+    ),
+    LocationSuggestion(
+      name: 'NUST Jinnah Auditorium',
+      address: 'Sector H-12, Kashmir Highway, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.6420,
+      lng: 72.9900,
+      category: 'Auditorium Complex',
+    ),
+    LocationSuggestion(
+      name: 'Islamabad Club Grand Marquee',
+      address: 'Murree Road, Rawal Dam Promenade, Islamabad',
+      city: 'Islamabad',
+      province: 'Islamabad Capital',
+      lat: 33.7020,
+      lng: 73.1180,
+      category: 'Private Club Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Pearl Continental Hotel Rawalpindi',
+      address: 'The Mall Road, Rawalpindi Cantt',
+      city: 'Rawalpindi',
+      province: 'Punjab',
       lat: 33.5955,
       lng: 73.0543,
+      category: 'Banquet & Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Rawalpindi Arts Council',
+      address: 'Stadium Road, Shamsabad, Rawalpindi',
+      city: 'Rawalpindi',
+      province: 'Punjab',
+      lat: 33.6470,
+      lng: 73.0780,
+      category: 'Theater & Exhibition Hall',
+    ),
+    LocationSuggestion(
+      name: 'Arena Marquee Bahria Town',
+      address: 'Phase 4, Bahria Town, Rawalpindi',
+      city: 'Rawalpindi',
+      province: 'Punjab',
+      lat: 33.5350,
+      lng: 73.1020,
+      category: 'Grand Marquee',
+    ),
+
+    // --- PESHAWAR & KHYBER PAKHTUNKHWA ---
+    LocationSuggestion(
+      name: 'Pearl Continental Hotel Peshawar',
+      address: 'Khyber Road, Peshawar Cantt',
+      city: 'Peshawar',
+      province: 'Khyber Pakhtunkhwa',
+      lat: 34.0150,
+      lng: 71.5580,
+      category: 'Luxury Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Nishtar Hall Peshawar',
+      address: 'Museum Road, Peshawar Cantt',
+      city: 'Peshawar',
+      province: 'Khyber Pakhtunkhwa',
+      lat: 34.0080,
+      lng: 71.5520,
+      category: 'Auditorium & Arts Center',
+    ),
+    LocationSuggestion(
+      name: 'Shiraz Arena Banquet',
+      address: 'University Road, Peshawar',
+      city: 'Peshawar',
+      province: 'Khyber Pakhtunkhwa',
+      lat: 33.9980,
+      lng: 71.4920,
+      category: 'Grand Banquet',
+    ),
+    LocationSuggestion(
+      name: 'Abbottabad Club Hall',
+      address: 'The Mall, Abbottabad Cantt',
+      city: 'Abbottabad',
+      province: 'Khyber Pakhtunkhwa',
+      lat: 34.1500,
+      lng: 73.2200,
       category: 'Banquet Hall',
     ),
     LocationSuggestion(
-      name: 'Arts Council of Pakistan',
-      address: 'M.R. Kiyani Road, Saddar, Karachi',
-      lat: 24.8569,
-      lng: 67.0223,
-      category: 'Cultural Center',
+      name: 'Swat Serena Hotel Lawn',
+      address: 'Saidu Sharif, Swat Valley',
+      city: 'Mingora / Swat',
+      province: 'Khyber Pakhtunkhwa',
+      lat: 35.7500,
+      lng: 72.3600,
+      category: 'Resort Pavilion',
     ),
+
+    // --- QUETTA & BALOCHISTAN ---
+    LocationSuggestion(
+      name: 'Serena Hotel Quetta',
+      address: 'Shahrah-e-Zarghoon, Quetta Cantt',
+      city: 'Quetta',
+      province: 'Balochistan',
+      lat: 30.1980,
+      lng: 67.0180,
+      category: '5-Star Ballroom & Lawn',
+    ),
+    LocationSuggestion(
+      name: 'Quetta Club Auditorium',
+      address: 'Club Road, Cantt, Quetta',
+      city: 'Quetta',
+      province: 'Balochistan',
+      lat: 30.2050,
+      lng: 67.0250,
+      category: 'Banquet & Meeting Hall',
+    ),
+    LocationSuggestion(
+      name: 'Gwadar Business Center Pavilion',
+      address: 'Main Airport Road, Gwadar Free Zone',
+      city: 'Gwadar',
+      province: 'Balochistan',
+      lat: 25.1260,
+      lng: 62.3250,
+      category: 'International Convention Hall',
+    ),
+
+    // --- GILGIT-BALTISTAN & AZAD KASHMIR ---
+    LocationSuggestion(
+      name: 'Serena Hotel Gilgit Gardens',
+      address: 'Sherullah Beg Road, Jutial, Gilgit',
+      city: 'Gilgit',
+      province: 'Gilgit-Baltistan',
+      lat: 35.9180,
+      lng: 74.3460,
+      category: 'Alpine Event Lawn',
+    ),
+    LocationSuggestion(
+      name: 'Shangrila Resort Auditorium Skardu',
+      address: 'Kachura Lake, Skardu, Gilgit-Baltistan',
+      city: 'Skardu',
+      province: 'Gilgit-Baltistan',
+      lat: 35.4250,
+      lng: 75.4480,
+      category: 'Resort Convention Center',
+    ),
+    LocationSuggestion(
+      name: 'Pearl Continental Hotel Muzaffarabad',
+      address: 'Upper Chattar, Muzaffarabad AJK',
+      city: 'Muzaffarabad',
+      province: 'Azad Kashmir',
+      lat: 34.3650,
+      lng: 73.4720,
+      category: 'Mountain View Ballroom',
+    ),
+    LocationSuggestion(
+      name: 'Mirpur International Convention Hall',
+      address: 'Allama Iqbal Road, Sector F-1, Mirpur AJK',
+      city: 'Mirpur AJK',
+      province: 'Azad Kashmir',
+      lat: 33.1480,
+      lng: 73.7510,
+      category: 'Convention & Exhibition Hall',
+    ),
+  ];
+
+  static const List<String> _provinces = [
+    'All Pakistan',
+    'Sindh',
+    'Punjab',
+    'Islamabad Capital',
+    'Khyber Pakhtunkhwa',
+    'Balochistan',
+    'Gilgit-Baltistan',
+    'Azad Kashmir',
   ];
 
   late String _selectedVenueName;
   late String _selectedVenueAddress;
+  late String _selectedCity;
+  late String _selectedProvince;
   late double _currentLat;
   late double _currentLng;
   double _zoomLevel = 1.0;
   Offset _mapOffset = Offset.zero;
   List<LocationSuggestion> _filteredVenues = [];
+  String _selectedProvinceFilter = 'All Pakistan';
 
   @override
   void initState() {
@@ -125,20 +550,23 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
 
-    final matched = _defaultVenues.firstWhere(
+    final matched = _allPakistanVenues.firstWhere(
       (v) => (widget.initialLocation != null &&
           (widget.initialLocation!.toLowerCase().contains(v.name.toLowerCase()) ||
+              widget.initialLocation!.toLowerCase().contains(v.city.toLowerCase()) ||
               v.name.toLowerCase().contains(widget.initialLocation!.toLowerCase()))),
-      orElse: () => _defaultVenues.first,
+      orElse: () => _allPakistanVenues.first,
     );
 
     _selectedVenueName = widget.initialLocation?.isNotEmpty == true
         ? widget.initialLocation!
         : matched.name;
     _selectedVenueAddress = matched.address;
+    _selectedCity = matched.city;
+    _selectedProvince = matched.province;
     _currentLat = matched.lat;
     _currentLng = matched.lng;
-    _filteredVenues = _defaultVenues;
+    _filteredVenues = _allPakistanVenues;
 
     _searchController.addListener(_onSearchChanged);
   }
@@ -154,53 +582,132 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
   void _onSearchChanged() {
     final query = _searchController.text.trim().toLowerCase();
     setState(() {
-      if (query.isEmpty) {
-        _filteredVenues = _defaultVenues;
-      } else {
-        _filteredVenues = _defaultVenues
-            .where((v) =>
-                v.name.toLowerCase().contains(query) ||
-                v.address.toLowerCase().contains(query) ||
-                v.category.toLowerCase().contains(query))
-            .toList();
+      _filteredVenues = _allPakistanVenues.where((v) {
+        final matchesProvince = _selectedProvinceFilter == 'All Pakistan' ||
+            v.province.toLowerCase() == _selectedProvinceFilter.toLowerCase();
+
+        if (!matchesProvince) return false;
+        if (query.isEmpty) return true;
+
+        return v.name.toLowerCase().contains(query) ||
+            v.city.toLowerCase().contains(query) ||
+            v.address.toLowerCase().contains(query) ||
+            v.province.toLowerCase().contains(query) ||
+            v.category.toLowerCase().contains(query);
+      }).toList();
+    });
+
+    // If query matches a specific city or venue directly, auto-snap pin
+    if (query.isNotEmpty) {
+      final directMatch = _allPakistanVenues.firstWhere(
+        (v) => v.name.toLowerCase().contains(query) || v.city.toLowerCase() == query,
+        orElse: () => _filteredVenues.isNotEmpty ? _filteredVenues.first : _allPakistanVenues.first,
+      );
+      if (directMatch.name.toLowerCase().contains(query) || directMatch.city.toLowerCase() == query) {
+        _selectVenue(directMatch, updateSearchText: false);
+      }
+    }
+  }
+
+  void _filterByProvince(String province) {
+    setState(() {
+      _selectedProvinceFilter = province;
+      _onSearchChanged();
+      if (_filteredVenues.isNotEmpty) {
+        _selectVenue(_filteredVenues.first, updateSearchText: false);
       }
     });
   }
 
-  void _selectVenue(LocationSuggestion venue) {
+  void _selectVenue(LocationSuggestion venue, {bool updateSearchText = true}) {
     setState(() {
       _selectedVenueName = venue.name;
       _selectedVenueAddress = venue.address;
+      _selectedCity = venue.city;
+      _selectedProvince = venue.province;
       _currentLat = venue.lat;
       _currentLng = venue.lng;
-      _searchController.text = venue.name;
-      _mapOffset = Offset.zero;
+      if (updateSearchText) {
+        _searchController.text = venue.name;
+      }
+      // Pan map smoothly to the selected venue location relative to Pakistan center
+      _mapOffset = _calculateOffsetForCoordinates(venue.lat, venue.lng);
     });
+  }
+
+  Offset _calculateOffsetForCoordinates(double lat, double lng) {
+    // Pakistan geographic center: ~30.3753° N, 69.3451° E
+    const centerLat = 30.3753;
+    const centerLng = 69.3451;
+    final dx = -(lng - centerLng) * 28.0;
+    final dy = (lat - centerLat) * 32.0;
+    return Offset(dx, dy);
+  }
+
+  void _onMapTapped(TapUpDetails details, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final touchPos = details.localPosition;
+    final relativeOffset = (touchPos - center - _mapOffset) / _zoomLevel;
+
+    // Convert canvas offset to Lat/Lng
+    const centerLat = 30.3753;
+    const centerLng = 69.3451;
+    final tappedLng = centerLng + (relativeOffset.dx / 28.0);
+    final tappedLat = centerLat - (relativeOffset.dy / 32.0);
+
+    // Find closest venue or synthesize custom location in Pakistan
+    LocationSuggestion closest = _allPakistanVenues.first;
+    double minDistance = double.infinity;
+
+    for (final v in _allPakistanVenues) {
+      final d = math.sqrt(math.pow(v.lat - tappedLat, 2) + math.pow(v.lng - tappedLng, 2));
+      if (d < minDistance) {
+        minDistance = d;
+        closest = v;
+      }
+    }
+
+    if (minDistance < 1.2) {
+      _selectVenue(closest);
+    } else {
+      setState(() {
+        _currentLat = tappedLat.clamp(23.5, 37.1);
+        _currentLng = tappedLng.clamp(60.8, 77.5);
+        _selectedCity = closest.city;
+        _selectedProvince = closest.province;
+        _selectedVenueName = 'Pinned Location near ${closest.city}';
+        _selectedVenueAddress = '${closest.city}, ${closest.province}, Pakistan';
+        _searchController.text = _selectedVenueName;
+        _mapOffset = _calculateOffsetForCoordinates(_currentLat, _currentLng);
+      });
+    }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
     setState(() {
       _mapOffset += details.delta / _zoomLevel;
-      // Synthesize micro coordinate change based on pan
-      _currentLat -= details.delta.dy * 0.0001 / _zoomLevel;
-      _currentLng += details.delta.dx * 0.0001 / _zoomLevel;
     });
   }
 
   void _zoomIn() {
     setState(() {
-      _zoomLevel = (_zoomLevel * 1.25).clamp(0.6, 2.5);
+      _zoomLevel = (_zoomLevel * 1.25).clamp(0.5, 3.0);
     });
   }
 
   void _zoomOut() {
     setState(() {
-      _zoomLevel = (_zoomLevel / 1.25).clamp(0.6, 2.5);
+      _zoomLevel = (_zoomLevel / 1.25).clamp(0.5, 3.0);
     });
   }
 
-  void _centerUserLocation() {
-    _selectVenue(_defaultVenues.first);
+  void _resetToPakistanOverview() {
+    setState(() {
+      _zoomLevel = 1.0;
+      _mapOffset = Offset.zero;
+      _selectedProvinceFilter = 'All Pakistan';
+      _selectVenue(_allPakistanVenues.first, updateSearchText: true);
+    });
   }
 
   @override
@@ -211,7 +718,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
     final cardBg = isDark ? AppColors.darkSurfaceElevated : Colors.white;
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 620, maxHeight: 720),
+      constraints: const BoxConstraints(maxWidth: 680, maxHeight: 760),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF14161E) : Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -233,9 +740,9 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Modal Header
+            // Modal Header with Pakistan Flag Emblem
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1B1E2B) : const Color(0xFFF7F6F1),
                 border: Border(
@@ -264,16 +771,22 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Google Maps Area Picker',
-                          style: AppTypography.manrope(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: primaryTextColor,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              'Pakistan Nationwide Map & Venue Picker',
+                              style: AppTypography.manrope(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w700,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text('🇵🇰', style: TextStyle(fontSize: 15)),
+                          ],
                         ),
                         Text(
-                          'Search venue or drag map to pin location',
+                          'Click anywhere on Pakistan map or search any city / hall',
                           style: AppTypography.manrope(
                             fontSize: 12,
                             color: secondaryTextColor,
@@ -291,16 +804,16 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
               ),
             ),
 
-            // Search Bar & Quick Chips
+            // Search Bar & Province Filter Chips
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               color: isDark ? const Color(0xFF14161E) : Colors.white,
               child: Column(
                 children: [
                   TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search city, venue or landmark...',
+                      hintText: 'Search city (e.g. Karachi, Lahore, Islamabad), hall, or venue...',
                       prefixIcon: const Icon(Icons.search_rounded, size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -320,49 +833,40 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                     ),
                   ),
                   const SizedBox(height: 8),
+
+                  // Province Tabs
                   SizedBox(
-                    height: 32,
+                    height: 30,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _filteredVenues.length,
+                      itemCount: _provinces.length,
                       itemBuilder: (context, index) {
-                        final v = _filteredVenues[index];
-                        final isSelected = v.name == _selectedVenueName;
+                        final p = _provinces[index];
+                        final isSelected = p == _selectedProvinceFilter;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
+                          padding: const EdgeInsets.only(right: 6.0),
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _selectVenue(v),
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _filterByProvince(p),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent)
                                     : (isDark ? const Color(0xFF1E2232) : const Color(0xFFEBE7DD)),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.place_rounded,
-                                    size: 13,
+                              child: Center(
+                                child: Text(
+                                  p,
+                                  style: AppTypography.manrope(
+                                    fontSize: 11,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                     color: isSelected
                                         ? Colors.white
                                         : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    v.name,
-                                    style: AppTypography.manrope(
-                                      fontSize: 11.5,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -374,165 +878,254 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
               ),
             ),
 
-            // Interactive Google Maps Canvas Viewport
+            // Interactive Pakistan Map Canvas Viewport
             Expanded(
-              child: GestureDetector(
-                onPanUpdate: _onPanUpdate,
-                child: ClipRect(
-                  child: Stack(
-                    children: [
-                      // Google Maps Custom Styling Vector/Grid Background
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _GoogleMapCanvasPainter(
-                            isDark: isDark,
-                            offset: _mapOffset,
-                            zoom: _zoomLevel,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final mapSize = Size(constraints.maxWidth, constraints.maxHeight);
+                  return GestureDetector(
+                    onTapUp: (details) => _onMapTapped(details, mapSize),
+                    onPanUpdate: _onPanUpdate,
+                    child: ClipRect(
+                      child: Stack(
+                        children: [
+                          // Vector Painter of Whole Pakistan Map & Provinces
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _PakistanMapCanvasPainter(
+                                isDark: isDark,
+                                offset: _mapOffset,
+                                zoom: _zoomLevel,
+                                venues: _allPakistanVenues,
+                                selectedVenueName: _selectedVenueName,
+                                currentLat: _currentLat,
+                                currentLng: _currentLng,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
 
-                      // Radar Pulse & Interactive Center Pin
-                      Center(
-                        child: AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (context, child) {
-                            final pulseVal = _pulseController.value;
-                            return Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Pulse wave ring
-                                Container(
-                                  width: 40 + (pulseVal * 36),
-                                  height: 40 + (pulseVal * 36),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
-                                        .withValues(alpha: (1.0 - pulseVal) * 0.4),
-                                    border: Border.all(
-                                      color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
-                                          .withValues(alpha: (1.0 - pulseVal) * 0.7),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                // Google Maps Pin Marker
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
+                          // Animated Center Target Pin
+                          Center(
+                            child: AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (context, child) {
+                                final pulseVal = _pulseController.value;
+                                return Stack(
+                                  alignment: Alignment.center,
                                   children: [
+                                    // Radar Pulse Ring
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      width: 44 + (pulseVal * 36),
+                                      height: 44 + (pulseVal * 36),
                                       decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF1E2232) : Colors.black87,
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Text(
-                                        _selectedVenueName,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
+                                        shape: BoxShape.circle,
+                                        color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
+                                            .withValues(alpha: (1.0 - pulseVal) * 0.4),
+                                        border: Border.all(
+                                          color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
+                                              .withValues(alpha: (1.0 - pulseVal) * 0.7),
+                                          width: 1.5,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(height: 3),
-                                    Icon(
-                                      Icons.location_pin,
-                                      size: 38,
-                                      color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black.withValues(alpha: 0.4),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
+                                    // Pin Marker & Name Callout
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF1E2232) : Colors.black87,
+                                            borderRadius: BorderRadius.circular(8),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.35),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.location_on_rounded, size: 12, color: Colors.amber),
+                                              const SizedBox(width: 4),
+                                              ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 180),
+                                                child: Text(
+                                                  _selectedVenueName,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Icon(
+                                          Icons.location_pin,
+                                          size: 40,
+                                          color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black.withValues(alpha: 0.5),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ],
+                                );
+                              },
+                            ),
+                          ),
+
+                          // Pakistan Watermark & Compass
+                          Positioned(
+                            left: 12,
+                            bottom: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: (isDark ? Colors.black87 : Colors.white).withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇵🇰', style: TextStyle(fontSize: 14)),
+                                  const SizedBox(width: 6),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'PAKISTAN GIS MAP',
+                                        style: AppTypography.manrope(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: primaryTextColor,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      Text(
+                                        'All Provinces & Venues',
+                                        style: AppTypography.manrope(
+                                          fontSize: 9,
+                                          color: secondaryTextColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Map Zoom & Center Controls
+                          Positioned(
+                            right: 12,
+                            bottom: 12,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildControlBtn(
+                                  icon: Icons.refresh_rounded,
+                                  tooltip: 'Reset to Pakistan Overview',
+                                  isDark: isDark,
+                                  onTap: _resetToPakistanOverview,
+                                ),
+                                const SizedBox(height: 6),
+                                _buildControlBtn(
+                                  icon: Icons.add_rounded,
+                                  tooltip: 'Zoom In',
+                                  isDark: isDark,
+                                  onTap: _zoomIn,
+                                ),
+                                const SizedBox(height: 4),
+                                _buildControlBtn(
+                                  icon: Icons.remove_rounded,
+                                  tooltip: 'Zoom Out',
+                                  isDark: isDark,
+                                  onTap: _zoomOut,
                                 ),
                               ],
-                            );
-                          },
-                        ),
-                      ),
-
-                      // Google Maps watermark pill
-                      Positioned(
-                        left: 12,
-                        bottom: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(6),
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Google',
-                                style: AppTypography.manrope(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white70 : Colors.black87,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Maps Engine',
-                                style: AppTypography.manrope(
-                                  fontSize: 9.5,
-                                  color: secondaryTextColor,
-                                ),
-                              ),
-                            ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Live Venue Quick Selection Bar
+            Container(
+              height: 38,
+              color: isDark ? const Color(0xFF1B1E2B) : const Color(0xFFF3EFE6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _filteredVenues.length,
+                itemBuilder: (context, index) {
+                  final v = _filteredVenues[index];
+                  final isSelected = v.name == _selectedVenueName;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _selectVenue(v),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent)
+                              : (isDark ? const Color(0xFF242838) : Colors.white),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.transparent
+                                : (isDark ? AppColors.darkDivider : AppColors.lightDivider),
                           ),
                         ),
-                      ),
-
-                      // Map Zoom and GPS Controls
-                      Positioned(
-                        right: 12,
-                        bottom: 12,
-                        child: Column(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildControlBtn(
-                              icon: Icons.my_location_rounded,
-                              tooltip: 'Center Location',
-                              isDark: isDark,
-                              onTap: _centerUserLocation,
+                            Icon(
+                              Icons.place_rounded,
+                              size: 13,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent),
                             ),
-                            const SizedBox(height: 6),
-                            _buildControlBtn(
-                              icon: Icons.add_rounded,
-                              tooltip: 'Zoom In',
-                              isDark: isDark,
-                              onTap: _zoomIn,
-                            ),
-                            const SizedBox(height: 4),
-                            _buildControlBtn(
-                              icon: Icons.remove_rounded,
-                              tooltip: 'Zoom Out',
-                              isDark: isDark,
-                              onTap: _zoomOut,
+                            const SizedBox(width: 4),
+                            Text(
+                              '${v.name} (${v.city})',
+                              style: AppTypography.manrope(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
 
@@ -555,9 +1148,9 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        Icons.place_rounded,
-                        color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
-                        size: 22,
+                        Icons.verified_rounded,
+                        color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                        size: 24,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -575,7 +1168,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              _selectedVenueAddress,
+                              '$_selectedVenueAddress • $_selectedCity, $_selectedProvince',
                               style: AppTypography.manrope(
                                 fontSize: 11.5,
                                 color: secondaryTextColor,
@@ -587,13 +1180,13 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${_currentLat.toStringAsFixed(4)}°, ${_currentLng.toStringAsFixed(4)}°',
+                          '${_currentLat.toStringAsFixed(4)}° N, ${_currentLng.toStringAsFixed(4)}° E',
                           style: TextStyle(
                             fontSize: 10,
                             fontFamily: 'monospace',
@@ -604,7 +1197,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -618,13 +1211,13 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                       Expanded(
                         flex: 2,
                         child: AppButton(
-                          text: 'Confirm Location',
+                          text: 'Select This Location',
                           icon: Icons.check_circle_outline_rounded,
                           variant: AppButtonVariant.organizer,
                           onPressed: () {
                             final chosenLocation = _selectedVenueName.isNotEmpty
-                                ? _selectedVenueName
-                                : '$_selectedVenueAddress (${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)})';
+                                ? '$_selectedVenueName, $_selectedCity'
+                                : '$_selectedVenueAddress, $_selectedCity, Pakistan';
                             Navigator.pop(context, chosenLocation);
                           },
                         ),
@@ -668,121 +1261,273 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
   }
 }
 
-/// Custom painter that renders a vector-styled Google Maps canvas (light / dark themed)
-class _GoogleMapCanvasPainter extends CustomPainter {
+/// Custom painter that renders a vector-styled map of the entire country of Pakistan
+class _PakistanMapCanvasPainter extends CustomPainter {
   final bool isDark;
   final Offset offset;
   final double zoom;
+  final List<LocationSuggestion> venues;
+  final String selectedVenueName;
+  final double currentLat;
+  final double currentLng;
 
-  _GoogleMapCanvasPainter({
+  _PakistanMapCanvasPainter({
     required this.isDark,
     required this.offset,
     required this.zoom,
+    required this.venues,
+    required this.selectedVenueName,
+    required this.currentLat,
+    required this.currentLng,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Base land color
-    final landColor = isDark ? const Color(0xFF12151F) : const Color(0xFFF1EFE6);
-    canvas.drawRect(Offset.zero & size, Paint()..color = landColor);
+    // Ocean / Arabian Sea base color
+    final seaColor = isDark ? const Color(0xFF0F1826) : const Color(0xFFCADEEB);
+    canvas.drawRect(Offset.zero & size, Paint()..color = seaColor);
 
     canvas.save();
     canvas.translate(size.width / 2 + offset.dx, size.height / 2 + offset.dy);
     canvas.scale(zoom);
 
-    // River / Water body
-    final waterPaint = Paint()
-      ..color = isDark ? const Color(0xFF17283C) : const Color(0xFFCADBE9)
-      ..style = PaintingStyle.fill;
-
-    final waterPath = Path();
-    waterPath.moveTo(-400, -180);
-    waterPath.cubicTo(-200, -220, -50, -120, 120, -180);
-    waterPath.cubicTo(260, -240, 420, -160, 600, -190);
-    waterPath.lineTo(600, -350);
-    waterPath.lineTo(-400, -350);
-    waterPath.close();
-    canvas.drawPath(waterPath, waterPaint);
-
-    // Park / Greenery Zone
-    final parkPaint = Paint()
-      ..color = isDark ? const Color(0xFF172B20) : const Color(0xFFD8EBD5)
-      ..style = PaintingStyle.fill;
-
-    final parkRect1 = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(-280, 40, 220, 180),
-      const Radius.circular(24),
-    );
-    canvas.drawRRect(parkRect1, parkPaint);
-
-    final parkRect2 = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(120, -80, 260, 200),
-      const Radius.circular(28),
-    );
-    canvas.drawRRect(parkRect2, parkPaint);
-
-    // Secondary Roads
-    final secRoadPaint = Paint()
-      ..color = isDark ? const Color(0xFF1E2436) : const Color(0xFFFFFFFF)
-      ..strokeWidth = 5
+    // 1. Pakistan Mainland Landmass Shape
+    final landColor = isDark ? const Color(0xFF161B28) : const Color(0xFFF3EFE3);
+    final borderPaint = Paint()
+      ..color = isDark ? const Color(0xFF2E3850) : const Color(0xFFD0C8B6)
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    for (double y = -300; y <= 300; y += 70) {
-      canvas.drawLine(Offset(-500, y), Offset(500, y), secRoadPaint);
-    }
-    for (double x = -400; x <= 400; x += 90) {
-      canvas.drawLine(Offset(x, -400), Offset(x, 400), secRoadPaint);
-    }
+    final pakPath = Path();
+    // Contour of Pakistan from South Coast (Gwadar/Karachi) up through Balochistan, KP, GB, Kashmir, Punjab, Sindh
+    pakPath.moveTo(-220, 180); // Gwadar / Makran coast
+    pakPath.lineTo(-120, 190); // Ormara
+    pakPath.lineTo(-20, 210);  // Karachi coastline
+    pakPath.lineTo(40, 220);   // Indus Delta / Badin / Rann of Kutch
+    pakPath.lineTo(90, 160);   // Thar Desert border
+    pakPath.lineTo(120, 60);   // Cholistan / Bahawalpur
+    pakPath.lineTo(160, -20);  // Lahore / Kasur East border
+    pakPath.lineTo(150, -100); // Sialkot / Narowal border
+    pakPath.lineTo(120, -160); // Kashmir / Jammu border
+    pakPath.lineTo(140, -230); // Skardu / Karakoram / Siachen
+    pakPath.lineTo(80, -280);  // Khunjerab Pass / K2 North
+    pakPath.lineTo(0, -270);   // Gilgit / Hunza
+    pakPath.lineTo(-60, -230); // Chitral / Hindu Kush
+    pakPath.lineTo(-120, -150);// Khyber Pass / Torkham
+    pakPath.lineTo(-170, -100);// Waziristan
+    pakPath.lineTo(-240, -40); // Chaman / Quetta West border
+    pakPath.lineTo(-270, 60);  // Taftan / Western Balochistan
+    pakPath.lineTo(-260, 150); // Jiwni
+    pakPath.close();
 
-    // Major Highways / Arteries
-    final mainHwyPaint = Paint()
-      ..color = isDark ? const Color(0xFF2C3550) : const Color(0xFFFEDC9D)
-      ..strokeWidth = 9
+    canvas.drawPath(pakPath, Paint()..color = landColor..style = PaintingStyle.fill);
+    canvas.drawPath(pakPath, borderPaint);
+
+    // 2. Province Zones & Colors
+    // Sindh
+    final sindhPath = Path()
+      ..moveTo(-30, 210)
+      ..lineTo(40, 220)
+      ..lineTo(90, 160)
+      ..lineTo(40, 110)
+      ..lineTo(-30, 110)
+      ..close();
+    canvas.drawPath(
+      sindhPath,
+      Paint()..color = (isDark ? const Color(0xFF1E2838) : const Color(0xFFE8E2D2)).withValues(alpha: 0.7),
+    );
+
+    // Punjab
+    final punjabPath = Path()
+      ..moveTo(-30, 110)
+      ..lineTo(40, 110)
+      ..lineTo(90, 160)
+      ..lineTo(120, 60)
+      ..lineTo(160, -20)
+      ..lineTo(150, -100)
+      ..lineTo(60, -110)
+      ..lineTo(10, -40)
+      ..close();
+    canvas.drawPath(
+      punjabPath,
+      Paint()..color = (isDark ? const Color(0xFF1A2A22) : const Color(0xFFE0EAD8)).withValues(alpha: 0.7),
+    );
+
+    // Khyber Pakhtunkhwa
+    final kpkPath = Path()
+      ..moveTo(60, -110)
+      ..lineTo(10, -40)
+      ..lineTo(-80, -70)
+      ..lineTo(-120, -150)
+      ..lineTo(-60, -230)
+      ..lineTo(0, -200)
+      ..close();
+    canvas.drawPath(
+      kpkPath,
+      Paint()..color = (isDark ? const Color(0xFF262030) : const Color(0xFFE6DCED)).withValues(alpha: 0.7),
+    );
+
+    // Balochistan
+    final balochPath = Path()
+      ..moveTo(-220, 180)
+      ..lineTo(-30, 210)
+      ..lineTo(-30, 110)
+      ..lineTo(10, -40)
+      ..lineTo(-80, -70)
+      ..lineTo(-170, -100)
+      ..lineTo(-240, -40)
+      ..lineTo(-270, 60)
+      ..close();
+    canvas.drawPath(
+      balochPath,
+      Paint()..color = (isDark ? const Color(0xFF28241D) : const Color(0xFFEFE6D6)).withValues(alpha: 0.7),
+    );
+
+    // Gilgit-Baltistan & Azad Kashmir
+    final northPath = Path()
+      ..moveTo(60, -110)
+      ..lineTo(120, -160)
+      ..lineTo(140, -230)
+      ..lineTo(80, -280)
+      ..lineTo(0, -270)
+      ..lineTo(-60, -230)
+      ..lineTo(0, -200)
+      ..close();
+    canvas.drawPath(
+      northPath,
+      Paint()..color = (isDark ? const Color(0xFF182E32) : const Color(0xFFD6EAEB)).withValues(alpha: 0.7),
+    );
+
+    // 3. Indus River System (Blue Curves)
+    final riverPaint = Paint()
+      ..color = isDark ? const Color(0xFF284C72) : const Color(0xFF7AA8CE)
+      ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final hwyPath1 = Path()
-      ..moveTo(-500, -100)
-      ..cubicTo(-180, -90, 80, 40, 500, 80);
-    canvas.drawPath(hwyPath1, mainHwyPaint);
+    final indusPath = Path()
+      ..moveTo(60, -240)
+      ..cubicTo(20, -180, 50, -120, 20, -40)
+      ..cubicTo(-10, 30, 10, 100, -10, 200);
+    canvas.drawPath(indusPath, riverPaint);
 
-    final hwyPath2 = Path()
-      ..moveTo(-60, -400)
-      ..cubicTo(-40, -120, 20, 150, 40, 400);
-    canvas.drawPath(hwyPath2, mainHwyPaint);
+    // Punjab Tributaries
+    final riverP2 = Paint()
+      ..color = isDark ? const Color(0xFF203E5E) : const Color(0xFF90BCD8)
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke;
+    final jhelumPath = Path()
+      ..moveTo(100, -150)
+      ..cubicTo(70, -100, 40, -60, 20, -40);
+    final chenabPath = Path()
+      ..moveTo(130, -120)
+      ..cubicTo(90, -80, 50, -40, 20, -40);
+    final raviPath = Path()
+      ..moveTo(150, -60)
+      ..cubicTo(100, -40, 60, -10, 10, 30);
+    canvas.drawPath(jhelumPath, riverP2);
+    canvas.drawPath(chenabPath, riverP2);
+    canvas.drawPath(raviPath, riverP2);
 
-    // Highway Core Line
-    final hwyCorePaint = Paint()
-      ..color = isDark ? const Color(0xFF3E4B72) : const Color(0xFFFFF6D6)
-      ..strokeWidth = 5
+    // 4. National Motorway & Highway Network (Golden Arteries)
+    final hwyPaint = Paint()
+      ..color = isDark ? const Color(0xFF4A4432) : const Color(0xFFE8C88A)
+      ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(hwyPath1, hwyCorePaint);
-    canvas.drawPath(hwyPath2, hwyCorePaint);
 
-    // Building / Venue Blocks
-    final blockPaint = Paint()
-      ..color = isDark ? const Color(0xFF181C2B) : const Color(0xFFE4DFD3)
-      ..style = PaintingStyle.fill;
+    // Karachi M-9 -> Sukkur M-5 -> Multan -> Lahore M-2 -> Islamabad M-2 -> Peshawar M-1
+    final motorWayPath = Path()
+      ..moveTo(-15, 205)  // Karachi
+      ..lineTo(0, 175)    // Hyderabad
+      ..lineTo(15, 95)    // Sukkur
+      ..lineTo(45, 10)    // Multan
+      ..lineTo(85, -25)   // Faisalabad
+      ..lineTo(140, -45)  // Lahore
+      ..lineTo(70, -120)  // Islamabad / Rawalpindi
+      ..lineTo(0, -135);  // Peshawar
+    canvas.drawPath(motorWayPath, hwyPaint);
 
-    final blockCoords = [
-      const Rect.fromLTWH(-160, -60, 70, 50),
-      const Rect.fromLTWH(-60, -60, 80, 50),
-      const Rect.fromLTWH(-160, 10, 70, 60),
-      const Rect.fromLTWH(40, 30, 60, 80),
-      const Rect.fromLTWH(-60, 80, 80, 70),
-    ];
-    for (final b in blockCoords) {
-      canvas.drawRRect(RRect.fromRectAndRadius(b, const Radius.circular(6)), blockPaint);
+    // 5. Province Region Name Labels
+    _drawText(canvas, 'BALOCHISTAN', const Offset(-150, 40), 12, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'PUNJAB', const Offset(80, 0), 12, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'SINDH', const Offset(15, 160), 12, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'KHYBER PAKHTUNKHWA', const Offset(-45, -120), 9.5, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'GILGIT-BALTISTAN', const Offset(45, -240), 9.5, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'AZAD KASHMIR', const Offset(105, -145), 9, isDark ? Colors.white24 : Colors.black26, FontWeight.w800);
+    _drawText(canvas, 'ARABIAN SEA', const Offset(-120, 240), 11, isDark ? const Color(0xFF324E72) : const Color(0xFF6B92B2), FontWeight.w700);
+
+    // 6. Cities and Venues Nodes on Pakistan Map
+    final cityDotPaint = Paint()..color = isDark ? Colors.white70 : Colors.black87;
+    final capitalDotPaint = Paint()..color = const Color(0xFF10B981);
+    final textStyle = TextStyle(
+      fontSize: 8.5,
+      fontWeight: FontWeight.w700,
+      color: isDark ? Colors.white70 : Colors.black87,
+    );
+
+    for (final v in venues) {
+      // Map Lat/Lng to Canvas offset
+      const centerLat = 30.3753;
+      const centerLng = 69.3451;
+      final dx = (v.lng - centerLng) * 28.0;
+      final dy = -(v.lat - centerLat) * 32.0;
+
+      final isCapital = v.city == 'Islamabad';
+      final isKarachiOrLahore = v.city == 'Karachi' || v.city == 'Lahore';
+
+      // Draw node dot
+      canvas.drawCircle(
+        Offset(dx, dy),
+        isCapital ? 4.5 : (isKarachiOrLahore ? 3.5 : 2.5),
+        isCapital ? capitalDotPaint : cityDotPaint,
+      );
+
+      // Label text
+      final textSpan = TextSpan(
+        text: v.city,
+        style: textStyle.copyWith(
+          fontSize: isCapital || isKarachiOrLahore ? 9.5 : 8.0,
+          fontWeight: isCapital || isKarachiOrLahore ? FontWeight.w800 : FontWeight.w600,
+          color: isCapital
+              ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+              : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(canvas, Offset(dx + 5, dy - 5));
     }
 
     canvas.restore();
   }
 
+  void _drawText(Canvas canvas, String text, Offset offset, double size, Color color, FontWeight weight) {
+    final textSpan = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        letterSpacing: 1.5,
+      ),
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(canvas, offset);
+  }
+
   @override
-  bool shouldRepaint(covariant _GoogleMapCanvasPainter oldDelegate) {
+  bool shouldRepaint(covariant _PakistanMapCanvasPainter oldDelegate) {
     return oldDelegate.isDark != isDark ||
         oldDelegate.offset != offset ||
-        oldDelegate.zoom != zoom;
+        oldDelegate.zoom != zoom ||
+        oldDelegate.selectedVenueName != selectedVenueName ||
+        oldDelegate.currentLat != currentLat ||
+        oldDelegate.currentLng != currentLng;
   }
 }
