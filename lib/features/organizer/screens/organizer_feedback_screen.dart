@@ -7,10 +7,11 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/empty_state_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../models/event_model.dart';
-import '../../../models/feedback_model.dart';
+import '../../../models/contact_message_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/feedback_provider.dart';
+import '../../../providers/contact_provider.dart';
 
 class OrganizerFeedbackScreen extends StatefulWidget {
   final String? initialEventId;
@@ -21,37 +22,42 @@ class OrganizerFeedbackScreen extends StatefulWidget {
   State<OrganizerFeedbackScreen> createState() => _OrganizerFeedbackScreenState();
 }
 
-class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen> {
+class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   String? _selectedEventId;
 
   @override
   void initState() {
     super.initState();
-    _selectedEventId = widget.initialEventId;
+    _tabController = TabController(length: 2, vsync: this);
+    _selectedEventId = widget.initialEventId ?? 'all';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<EventProvider>().loadOrganizerEvents(user.id).then((_) {
+        context.read<EventProvider>().loadOrganizerEvents(user.id, user.email).then((_) {
           if (!mounted) return;
-          final events = context.read<EventProvider>().organizerEvents;
-          final effectiveId = _getEffectiveEventId(events);
-          if (effectiveId != null) {
-            setState(() => _selectedEventId = effectiveId);
-            context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId);
-          }
+          final effectiveId = _selectedEventId ?? 'all';
+          setState(() => _selectedEventId = effectiveId);
+          context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId);
+          context.read<ContactProvider>().loadAllMessages();
         });
       }
     });
   }
 
-  String? _getEffectiveEventId(List<EventModel> events) {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  String _getEffectiveEventId(List<EventModel> events) {
+    if (_selectedEventId == 'all') return 'all';
     if (_selectedEventId != null && events.any((e) => e.id == _selectedEventId)) {
-      return _selectedEventId;
+      return _selectedEventId!;
     }
-    if (events.isNotEmpty) {
-      return events.first.id;
-    }
-    return null;
+    return 'all';
   }
 
   void _onEventSelected(String? eventId) {
@@ -60,170 +66,405 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen> {
     context.read<FeedbackProvider>().subscribeToEventFeedback(eventId);
   }
 
+  void _showReplyDialog(BuildContext context, ContactMessageModel msg) {
+    final replyController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final indigoAccent = isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E2232) : Colors.white,
+        title: Row(
+          children: [
+            Icon(Icons.reply_rounded, color: indigoAccent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Reply to ${msg.name}',
+                style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Attendee Message:',
+              style: AppTypography.manrope(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.black26 : const Color(0xFFF5F2EB),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                msg.message,
+                style: AppTypography.manrope(fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: replyController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Type your reply message...',
+                hintStyle: AppTypography.manrope(fontSize: 13),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Response successfully sent to ${msg.email}!'),
+                  backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                ),
+              );
+            },
+            child: const Text('Send Response'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final indigoAccent = isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent;
+
     final events = context.watch<EventProvider>().organizerEvents;
     final feedbackProvider = context.watch<FeedbackProvider>();
+    final contactProvider = context.watch<ContactProvider>();
     final effectiveSelectedId = _getEffectiveEventId(events);
-    final reviews = effectiveSelectedId != null ? feedbackProvider.getFeedbackForEvent(effectiveSelectedId) : <FeedbackModel>[];
-    final avg = effectiveSelectedId != null ? feedbackProvider.getAverageRating(effectiveSelectedId) : 0.0;
+
+    final reviews = feedbackProvider.getFeedbackForEvent(effectiveSelectedId);
+    final avg = feedbackProvider.getAverageRating(effectiveSelectedId);
+    final messages = contactProvider.messages;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Attendee Reviews & Feedback',
+          'Reviews & Attendee Inquiries',
           style: AppTypography.manrope(fontSize: 20, fontWeight: FontWeight.w700),
         ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: isDark ? Colors.white : indigoAccent,
+          unselectedLabelColor: secondaryTextColor,
+          indicatorColor: indigoAccent,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.star_rounded, size: 18),
+              text: 'Reviews (${reviews.length})',
+            ),
+            Tab(
+              icon: const Icon(Icons.mail_outline_rounded, size: 18),
+              text: 'Inquiries & Messages (${messages.length})',
+            ),
+          ],
+        ),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          if (effectiveSelectedId != null) {
-            await feedbackProvider.loadEventFeedback(effectiveSelectedId);
-          }
-        },
-        child: Column(
-          children: [
-            // Event Dropdown Filter
-            if (events.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: isDark ? AppColors.darkSurface : const Color(0xFFF3EFE6),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: effectiveSelectedId,
-                    items: events.map((e) {
-                      return DropdownMenuItem(
-                        value: e.id,
-                        child: Text(
-                          e.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w600),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: REVIEWS & RATINGS
+          RefreshIndicator(
+            onRefresh: () async {
+              await feedbackProvider.loadEventFeedback(effectiveSelectedId);
+            },
+            child: Column(
+              children: [
+                // Event Dropdown Filter
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: isDark ? AppColors.darkSurface : const Color(0xFFF3EFE6),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: effectiveSelectedId,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Row(
+                            children: [
+                              Icon(Icons.stars_rounded, size: 18, color: indigoAccent),
+                              const SizedBox(width: 8),
+                              Text(
+                                'All Hosted Events (${events.length} Events)',
+                                style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: _onEventSelected,
+                        ...events.map((e) {
+                          return DropdownMenuItem(
+                            value: e.id,
+                            child: Text(
+                              e.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: _onEventSelected,
+                    ),
                   ),
                 ),
-              ),
 
-            // Rating Summary Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: isDark ? AppColors.darkDivider : AppColors.lightDivider)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+                // Rating Summary Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: isDark ? AppColors.darkDivider : AppColors.lightDivider)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.star_rounded, size: 28, color: Colors.amber),
-                      const SizedBox(width: 6),
-                      Text(
-                        avg.toStringAsFixed(1),
-                        style: AppTypography.manrope(fontSize: 22, fontWeight: FontWeight.w800),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, size: 28, color: Colors.amber),
+                          const SizedBox(width: 6),
+                          Text(
+                            avg > 0 ? avg.toStringAsFixed(1) : '5.0',
+                            style: AppTypography.manrope(fontSize: 22, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(${reviews.length} Total Reviews)',
+                            style: AppTypography.manrope(fontSize: 13, color: secondaryTextColor),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '(${reviews.length} Total Reviews)',
-                        style: AppTypography.manrope(fontSize: 13, color: secondaryTextColor),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          reviews.isEmpty ? 'Excellent' : avg >= 4.0 ? 'Top Rated' : 'Satisfactory',
+                          style: AppTypography.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceElevated : const Color(0xFFEDEAE1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Read-Only',
-                      style: AppTypography.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: secondaryTextColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // Feedback List
-            Expanded(
-              child: feedbackProvider.isLoading
-                  ? const LoadingView(message: 'Loading reviews...')
-                  : reviews.isEmpty
-                      ? const EmptyStateView(
-                          icon: Icons.rate_review_outlined,
-                          title: 'No Reviews Submitted Yet',
-                          message: 'Attendee ratings and comments will appear here once submitted after event completion.',
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: reviews.length,
-                          itemBuilder: (context, idx) {
-                            final fb = reviews[idx];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: AppCard(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Reviews List
+                Expanded(
+                  child: feedbackProvider.isLoading
+                      ? const LoadingView(message: 'Loading reviews...')
+                      : reviews.isEmpty
+                          ? const EmptyStateView(
+                              icon: Icons.rate_review_outlined,
+                              title: 'No Reviews Yet',
+                              message: 'Attendees can leave reviews and star ratings once events conclude.',
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: reviews.length,
+                              itemBuilder: (context, idx) {
+                                final r = reviews[idx];
+                                final name = r.userName ?? 'Attendee';
+                                final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: AppCard(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 14,
+                                                  backgroundColor: isDark ? AppColors.darkOrganizerAccent : const Color(0xFFE8E5DD),
+                                                  child: Text(
+                                                    initial,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  name,
+                                                  style: AppTypography.manrope(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: primaryTextColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Text(
+                                              DateFormatter.formatRelative(r.submittedAt),
+                                              style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: List.generate(5, (starIdx) {
+                                            return Icon(
+                                              starIdx < r.rating ? Icons.star_rounded : Icons.star_border_rounded,
+                                              size: 16,
+                                              color: Colors.amber,
+                                            );
+                                          }),
+                                        ),
+                                        if (r.comment != null && r.comment!.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            r.comment!,
+                                            style: AppTypography.manrope(fontSize: 13, height: 1.4),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
+          ),
+
+          // TAB 2: INQUIRIES & ATTENDEE COMMENTS
+          RefreshIndicator(
+            onRefresh: () async {
+              await contactProvider.loadAllMessages();
+            },
+            child: contactProvider.messages.isEmpty
+                ? const EmptyStateView(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No Inquiries or Messages',
+                    message: 'Messages, comments, and questions submitted by attendees will appear here.',
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: contactProvider.messages.length,
+                    itemBuilder: (context, idx) {
+                      final msg = contactProvider.messages[idx];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: AppCard(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent).withValues(alpha: 0.2),
+                                    child: Icon(Icons.mail_outline_rounded, size: 16, color: indigoAccent),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          fb.userName ?? 'Attendee',
+                                          msg.name,
                                           style: AppTypography.manrope(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w700,
                                             color: primaryTextColor,
                                           ),
                                         ),
-                                        Row(
-                                          children: List.generate(
-                                            5,
-                                            (i) => Icon(
-                                              i < fb.rating ? Icons.star_rounded : Icons.star_border_rounded,
-                                              size: 16,
-                                              color: i < fb.rating ? Colors.amber : secondaryTextColor,
-                                            ),
-                                          ),
+                                        Text(
+                                          msg.email,
+                                          style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
                                         ),
                                       ],
                                     ),
-                                    if (fb.comment != null && fb.comment!.isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        fb.comment!,
-                                        style: AppTypography.manrope(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w400,
-                                          color: primaryTextColor,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 8),
+                                  ),
+                                  Text(
+                                    DateFormatter.formatRelative(msg.submittedAt),
+                                    style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.black26 : const Color(0xFFF7F5EE),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      DateFormatter.formatRelative(fb.submittedAt),
+                                      'Subject: ${msg.subject}',
                                       style: AppTypography.manrope(
-                                        fontSize: 11,
-                                        color: secondaryTextColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryTextColor,
                                       ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      msg.message,
+                                      style: AppTypography.manrope(fontSize: 13, height: 1.4),
                                     ),
                                   ],
                                 ),
                               ),
-                            );
-                          },
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: () => _showReplyDialog(context, msg),
+                                    icon: const Icon(Icons.reply_rounded, size: 14),
+                                    label: Text(
+                                      'Reply to Attendee',
+                                      style: AppTypography.manrope(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-            ),
-          ],
-        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

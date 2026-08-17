@@ -537,6 +537,8 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
   late double _currentLat;
   late double _currentLng;
   double _zoomLevel = 1.0;
+  int _osmZoom = 13;
+  String _mapMode = 'osm'; // 'osm', 'hybrid', 'vector'
   Offset _mapOffset = Offset.zero;
   List<LocationSuggestion> _filteredVenues = [];
   String _selectedProvinceFilter = 'All Pakistan';
@@ -630,13 +632,11 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
       if (updateSearchText) {
         _searchController.text = venue.name;
       }
-      // Pan map smoothly to the selected venue location relative to Pakistan center
       _mapOffset = _calculateOffsetForCoordinates(venue.lat, venue.lng);
     });
   }
 
   Offset _calculateOffsetForCoordinates(double lat, double lng) {
-    // Pakistan geographic center: ~30.3753° N, 69.3451° E
     const centerLat = 30.3753;
     const centerLng = 69.3451;
     final dx = -(lng - centerLng) * 28.0;
@@ -647,15 +647,27 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
   void _onMapTapped(TapUpDetails details, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final touchPos = details.localPosition;
-    final relativeOffset = (touchPos - center - _mapOffset) / _zoomLevel;
+    final relativeOffset = (touchPos - center);
 
-    // Convert canvas offset to Lat/Lng
-    const centerLat = 30.3753;
-    const centerLng = 69.3451;
-    final tappedLng = centerLng + (relativeOffset.dx / 28.0);
-    final tappedLat = centerLat - (relativeOffset.dy / 32.0);
+    double tappedLat;
+    double tappedLng;
 
-    // Find closest venue or synthesize custom location in Pakistan
+    if (_mapMode == 'vector') {
+      final vecOffset = (touchPos - center - _mapOffset) / _zoomLevel;
+      const centerLat = 30.3753;
+      const centerLng = 69.3451;
+      tappedLng = centerLng + (vecOffset.dx / 28.0);
+      tappedLat = centerLat - (vecOffset.dy / 32.0);
+    } else {
+      // Real OpenStreetMap Slippy Map Mercator projection
+      final scale = 256.0 * (1 << _osmZoom);
+      final dLng = (relativeOffset.dx / scale) * 360.0;
+      final dLat = -(relativeOffset.dy / scale) * 180.0;
+      tappedLng = _currentLng + dLng;
+      tappedLat = _currentLat + dLat;
+    }
+
+    // Find closest venue in database
     LocationSuggestion closest = _allPakistanVenues.first;
     double minDistance = double.infinity;
 
@@ -667,7 +679,7 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
       }
     }
 
-    if (minDistance < 1.2) {
+    if (minDistance < 0.6) {
       _selectVenue(closest);
     } else {
       setState(() {
@@ -675,8 +687,8 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
         _currentLng = tappedLng.clamp(60.8, 77.5);
         _selectedCity = closest.city;
         _selectedProvince = closest.province;
-        _selectedVenueName = 'Pinned Location near ${closest.city}';
-        _selectedVenueAddress = '${closest.city}, ${closest.province}, Pakistan';
+        _selectedVenueName = '${closest.city} Landmark Area';
+        _selectedVenueAddress = 'Near ${closest.name}, ${closest.city}, ${closest.province}, Pakistan';
         _searchController.text = _selectedVenueName;
         _mapOffset = _calculateOffsetForCoordinates(_currentLat, _currentLng);
       });
@@ -685,27 +697,40 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
 
   void _onPanUpdate(DragUpdateDetails details) {
     setState(() {
-      _mapOffset += details.delta / _zoomLevel;
+      if (_mapMode == 'vector') {
+        _mapOffset += details.delta / _zoomLevel;
+      } else {
+        final scale = 256.0 * (1 << _osmZoom);
+        final dLng = -(details.delta.dx / scale) * 360.0;
+        final dLat = (details.delta.dy / scale) * 180.0;
+        _currentLng = (_currentLng + dLng).clamp(60.8, 77.5);
+        _currentLat = (_currentLat + dLat).clamp(23.5, 37.1);
+      }
     });
   }
 
   void _zoomIn() {
     setState(() {
       _zoomLevel = (_zoomLevel * 1.25).clamp(0.5, 3.0);
+      _osmZoom = (_osmZoom + 1).clamp(5, 17);
     });
   }
 
   void _zoomOut() {
     setState(() {
       _zoomLevel = (_zoomLevel / 1.25).clamp(0.5, 3.0);
+      _osmZoom = (_osmZoom - 1).clamp(5, 17);
     });
   }
 
   void _resetToPakistanOverview() {
     setState(() {
       _zoomLevel = 1.0;
+      _osmZoom = 6;
       _mapOffset = Offset.zero;
       _selectedProvinceFilter = 'All Pakistan';
+      _currentLat = 30.3753;
+      _currentLng = 69.3451;
       _selectVenue(_allPakistanVenues.first, updateSearchText: true);
     });
   }
@@ -889,17 +914,61 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
                     child: ClipRect(
                       child: Stack(
                         children: [
-                          // Vector Painter of Whole Pakistan Map & Provinces
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: _PakistanMapCanvasPainter(
+                          // 1. Base Layer: Real OpenStreetMap / Satellite Tiles
+                          if (_mapMode != 'vector')
+                            Positioned.fill(
+                              child: _OpenStreetMapTileLayer(
+                                lat: _currentLat,
+                                lng: _currentLng,
+                                zoom: _osmZoom,
+                                mapMode: _mapMode,
                                 isDark: isDark,
-                                offset: _mapOffset,
-                                zoom: _zoomLevel,
-                                venues: _allPakistanVenues,
-                                selectedVenueName: _selectedVenueName,
-                                currentLat: _currentLat,
-                                currentLng: _currentLng,
+                              ),
+                            ),
+
+                          // 2. Vector Painter Layer (when in Vector mode or as overlay)
+                          if (_mapMode == 'vector')
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: _PakistanMapCanvasPainter(
+                                  isDark: isDark,
+                                  offset: _mapOffset,
+                                  zoom: _zoomLevel,
+                                  venues: _allPakistanVenues,
+                                  selectedVenueName: _selectedVenueName,
+                                  currentLat: _currentLat,
+                                  currentLng: _currentLng,
+                                ),
+                              ),
+                            ),
+
+                          // 3. Map Mode Layer Switcher (OpenStreetMap / Satellite / Vector)
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: (isDark ? const Color(0xFF1B1E2B) : Colors.white).withValues(alpha: 0.92),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                                  width: 0.8,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildMapModeButton('osm', '🗺️ OSM Street', isDark),
+                                  _buildMapModeButton('hybrid', '🛰️ Satellite', isDark),
+                                  _buildMapModeButton('vector', '🇵🇰 GIS Vector', isDark),
+                                ],
                               ),
                             ),
                           ),
@@ -1259,6 +1328,35 @@ class _MapLocationPickerDialogState extends State<MapLocationPickerDialog>
       ),
     );
   }
+
+  Widget _buildMapModeButton(String modeKey, String label, bool isDark) {
+    final isSelected = _mapMode == modeKey;
+    final accentColor = isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        setState(() {
+          _mapMode = modeKey;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Custom painter that renders a vector-styled map of the entire country of Pakistan
@@ -1529,5 +1627,107 @@ class _PakistanMapCanvasPainter extends CustomPainter {
         oldDelegate.selectedVenueName != selectedVenueName ||
         oldDelegate.currentLat != currentLat ||
         oldDelegate.currentLng != currentLng;
+  }
+}
+
+/// Live Slippy Map tile renderer for OpenStreetMap & Satellite cartography
+class _OpenStreetMapTileLayer extends StatelessWidget {
+  final double lat;
+  final double lng;
+  final int zoom;
+  final String mapMode; // 'osm', 'hybrid', 'vector'
+  final bool isDark;
+
+  const _OpenStreetMapTileLayer({
+    required this.lat,
+    required this.lng,
+    required this.zoom,
+    required this.mapMode,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+
+        final centerTileX = _lon2tileX(lng, zoom);
+        final centerTileY = _lat2tileY(lat, zoom);
+
+        final centerTilePixelX = _lon2tilePixelX(lng, zoom);
+        final centerTilePixelY = _lat2tilePixelY(lat, zoom);
+
+        final offsetX = (width / 2) - centerTilePixelX;
+        final offsetY = (height / 2) - centerTilePixelY;
+
+        // Render 5x4 tile grid around current center coordinates
+        final tiles = <Widget>[];
+        for (int dx = -2; dx <= 2; dx++) {
+          for (int dy = -2; dy <= 2; dy++) {
+            final tx = centerTileX + dx;
+            final ty = centerTileY + dy;
+            if (tx < 0 || ty < 0) continue;
+
+            final tileLeft = offsetX + (dx * 256.0);
+            final tileTop = offsetY + (dy * 256.0);
+
+            // Alternate between OpenStreetMap fast subdomains
+            final sub = ['a', 'b', 'c'][(tx + ty).abs() % 3];
+            final tileUrl = mapMode == 'hybrid'
+                ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/$zoom/$ty/$tx'
+                : 'https://$sub.tile.openstreetmap.org/$zoom/$tx/$ty.png';
+
+            tiles.add(
+              Positioned(
+                left: tileLeft,
+                top: tileTop,
+                width: 256,
+                height: 256,
+                child: Image.network(
+                  tileUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, stack) => Container(
+                    color: isDark ? const Color(0xFF1E2230) : const Color(0xFFE9E5DB),
+                    child: Center(
+                      child: Icon(
+                        Icons.map_outlined,
+                        size: 24,
+                        color: isDark ? Colors.white24 : Colors.black26,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+
+        return Stack(
+          children: tiles,
+        );
+      },
+    );
+  }
+
+  static int _lon2tileX(double lon, int z) {
+    return ((lon + 180.0) / 360.0 * (1 << z)).floor();
+  }
+
+  static int _lat2tileY(double lat, int z) {
+    final latRad = lat * math.pi / 180.0;
+    return ((1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) / 2.0 * (1 << z)).floor();
+  }
+
+  static double _lon2tilePixelX(double lon, int z) {
+    final exactX = (lon + 180.0) / 360.0 * (1 << z);
+    return (exactX - exactX.floor()) * 256.0;
+  }
+
+  static double _lat2tilePixelY(double lat, int z) {
+    final latRad = lat * math.pi / 180.0;
+    final exactY = ((1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) / 2.0 * (1 << z));
+    return (exactY - exactY.floor()) * 256.0;
   }
 }

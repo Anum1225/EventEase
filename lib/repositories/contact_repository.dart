@@ -69,6 +69,6 @@ class ContactRepository {
         }
       } catch (_) {}
     }
-    return [];
+    return _localStore.getAllContactMessages();
   }
 }

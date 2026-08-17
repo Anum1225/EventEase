@@ -846,13 +846,18 @@ class LocalDataStore {
   }
 
   List<AttendanceModel> getEventAttendance(String eventId) {
-    if (eventId.isEmpty) {
+    if (eventId.isEmpty || eventId == 'all') {
       return _attendance.values.toList();
     }
     return _attendance.values.where((a) => a.eventId == eventId).toList();
   }
 
   List<RegistrationModel> getEventParticipants(String eventId) {
+    if (eventId.isEmpty || eventId == 'all') {
+      final list = _registrations.values.toList();
+      list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
+      return list;
+    }
     final list = _registrations.values.where((r) => r.eventId == eventId).toList();
     list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
     return list;
@@ -987,7 +992,7 @@ class LocalDataStore {
   }
 
   List<FeedbackModel> getEventFeedback(String eventId) {
-    if (eventId.isEmpty) {
+    if (eventId.isEmpty || eventId == 'all') {
       return getAllFeedback();
     }
     final list = _feedbacks.values.where((f) => f.eventId == eventId).toList();
@@ -1080,6 +1085,12 @@ class LocalDataStore {
       submittedAt: DateTime.now(),
     );
     _saveToDisk();
+  }
+
+  List<ContactMessageModel> getAllContactMessages() {
+    final list = _contacts.values.toList();
+    list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return list;
   }
 
   // =========================================================================

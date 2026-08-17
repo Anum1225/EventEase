@@ -30,18 +30,15 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedEventId = widget.initialEventId;
+    _selectedEventId = widget.initialEventId ?? 'all';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<EventProvider>().loadOrganizerEvents(user.id).then((_) {
+        context.read<EventProvider>().loadOrganizerEvents(user.id, user.email).then((_) {
           if (!mounted) return;
-          final events = context.read<EventProvider>().organizerEvents;
-          final effectiveId = _getEffectiveEventId(events);
-          if (effectiveId != null) {
-            setState(() => _selectedEventId = effectiveId);
-            context.read<AttendanceProvider>().loadEventParticipants(effectiveId);
-          }
+          final effectiveId = _selectedEventId ?? 'all';
+          setState(() => _selectedEventId = effectiveId);
+          context.read<AttendanceProvider>().loadEventParticipants(effectiveId);
         });
       }
     });
@@ -53,14 +50,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     super.dispose();
   }
 
-  String? _getEffectiveEventId(List<EventModel> events) {
+  String _getEffectiveEventId(List<EventModel> events) {
+    if (_selectedEventId == 'all') return 'all';
     if (_selectedEventId != null && events.any((e) => e.id == _selectedEventId)) {
-      return _selectedEventId;
+      return _selectedEventId!;
     }
-    if (events.isNotEmpty) {
-      return events.first.id;
-    }
-    return null;
+    return 'all';
   }
 
   void _onEventSelected(String? eventId) {
@@ -118,22 +113,33 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          if (effectiveSelectedId != null) {
-            await attendanceProvider.loadEventParticipants(effectiveSelectedId);
-          }
+          await attendanceProvider.loadEventParticipants(effectiveSelectedId);
         },
         child: Column(
           children: [
             // Event Dropdown Filter
-            if (events.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: isDark ? AppColors.darkSurface : const Color(0xFFF3EFE6),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: effectiveSelectedId,
-                    items: events.map((e) {
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: isDark ? AppColors.darkSurface : const Color(0xFFF3EFE6),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: effectiveSelectedId,
+                  items: [
+                    DropdownMenuItem(
+                      value: 'all',
+                      child: Row(
+                        children: [
+                          Icon(Icons.people_alt_rounded, size: 18, color: indigoAccent),
+                          const SizedBox(width: 8),
+                          Text(
+                            'All Hosted Events (${events.length} Events)',
+                            style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...events.map((e) {
                       return DropdownMenuItem(
                         value: e.id,
                         child: Text(
@@ -143,11 +149,12 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                           style: AppTypography.manrope(fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       );
-                    }).toList(),
-                    onChanged: _onEventSelected,
-                  ),
+                    }),
+                  ],
+                  onChanged: _onEventSelected,
                 ),
               ),
+            ),
 
             // Attendance KPI Banner
             Container(
@@ -279,14 +286,26 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            p.userName ?? 'Attendee',
-                                            style: AppTypography.manrope(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: primaryTextColor,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  p.userName ?? 'Attendee',
+                                                  style: AppTypography.manrope(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: primaryTextColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              StatusBadge(
+                                                status: isCheckedIn ? 'attended' : p.status,
+                                                fontSize: 10,
+                                                iconSize: 11,
+                                              ),
+                                            ],
                                           ),
+                                          const SizedBox(height: 2),
                                           Text(
                                             p.userEmail ?? '',
                                             style: AppTypography.manrope(fontSize: 12, color: secondaryTextColor),
@@ -296,13 +315,82 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                                             'Registered: ${DateFormatter.formatRelative(p.registeredAt)}',
                                             style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
                                           ),
+                                          if (p.eventTitle != null) ...[
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent).withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                '🎪 ${p.eventTitle}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.manrope(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                'Pass: ${p.qrCode}',
+                                                style: AppTypography.manrope(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: secondaryTextColor,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              if (p.isRegistered && !isCheckedIn)
+                                                InkWell(
+                                                  onTap: () async {
+                                                    final user = context.read<AuthProvider>().currentUser;
+                                                    if (user != null) {
+                                                      await attendanceProvider.processScannedQr(
+                                                        qrPayload: p.qrCode,
+                                                        currentEventId: p.eventId,
+                                                        organizerId: user.id,
+                                                      );
+                                                      await attendanceProvider.loadEventParticipants(effectiveSelectedId);
+                                                    }
+                                                  },
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: isDark ? AppColors.darkSuccess.withValues(alpha: 0.2) : const Color(0xFFE8F5E9),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(
+                                                        color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                                        width: 0.8,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.check_circle_outline, size: 12, color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
+                                                        const SizedBox(width: 4),
+                                                        Text(
+                                                          'Check In',
+                                                          style: AppTypography.manrope(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ],
                                       ),
-                                    ),
-                                    StatusBadge(
-                                      status: isCheckedIn ? 'attended' : p.status,
-                                      fontSize: 10,
-                                      iconSize: 11,
                                     ),
                                   ],
                                 ),

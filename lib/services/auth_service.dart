@@ -72,8 +72,33 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final isCoreDemo = cleanEmail == 'arandaiman@gmail.com' ||
+        cleanEmail == 'noobgamerabduljabber@gmail.com' ||
+        cleanEmail == 'admin@eventease.com';
+
+    // 1. Pre-verify core demo accounts directly to avoid unnecessary 400 Bad Request errors
+    if (isCoreDemo) {
+      try {
+        final localUser = _localStore.authenticateUser(email, password);
+        if (localUser != null) {
+          final auth = _safeAuth;
+          if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
+            auth.signInWithEmailAndPassword(email: cleanEmail, password: password).catchError((_) {
+              auth.createUserWithEmailAndPassword(email: cleanEmail, password: password).catchError((_) => null as dynamic);
+              return null as dynamic;
+            });
+          }
+          return localUser;
+        }
+      } catch (e) {
+        if (e is AuthException) rethrow;
+        throw AuthException(e.toString().replaceAll('Exception: ', ''));
+      }
+    }
+
     final auth = _safeAuth;
-    // 1. Try Firebase Authentication first if configured and available
+    // 2. Try Firebase Authentication for dynamic registered users
     if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
       try {
         final credential = await auth.signInWithEmailAndPassword(

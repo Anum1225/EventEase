@@ -119,7 +119,7 @@ class TwoFactorEmailService {
       actionType: actionType,
     );
 
-    // Relay 1: FormSubmit Open JSON Delivery
+    // Outbound Email Dispatch via FormSubmit Gateway
     try {
       final formSubmitResponse = await _httpClient.post(
         Uri.parse('https://formsubmit.co/ajax/$toEmail'),
@@ -138,77 +138,20 @@ class TwoFactorEmailService {
           'Action Requested': actionType,
           'Validity': '10 Minutes',
           'Security Advisory': 'Never share this code with anyone. EventEase will never ask for your verification code.',
-        }),
-      ).timeout(const Duration(seconds: 4), onTimeout: () {
-        return http.Response('timeout', 408);
-      });
-
-      if (kDebugMode) {
-        print('Relay 1 (FormSubmit) response for $toEmail: ${formSubmitResponse.statusCode}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Relay 1 delivery note: $e');
-      }
-    }
-
-    // Relay 2: Web3Forms Dispatch Relay
-    try {
-      final web3Response = await _httpClient.post(
-        Uri.parse('https://api.web3forms.com/submit'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'access_key': 'e8a719c2-7cf2-4db9-906d-e96238b71d60', // Public verified access key
-          'subject': subject,
-          'from_name': 'EventEase Security',
-          'to_email': toEmail,
-          'email': toEmail,
-          'name': userName.isNotEmpty ? userName : 'User',
-          'message': 'Your EventEase Two-Factor verification code is: $otpCode (Valid for 10 minutes for $actionType).',
           'html': htmlContent,
         }),
-      ).timeout(const Duration(seconds: 4), onTimeout: () {
+      ).timeout(const Duration(seconds: 3), onTimeout: () {
         return http.Response('timeout', 408);
       });
 
       if (kDebugMode) {
-        print('Relay 2 (Web3Forms) response for $toEmail: ${web3Response.statusCode}');
+        print('2FA Outbound delivery status for $toEmail: ${formSubmitResponse.statusCode}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Relay 2 delivery note: $e');
+        print('2FA email dispatch note: $e');
       }
     }
-
-    // Relay 3: EmailJS Direct REST Relay
-    try {
-      final emailJsResponse = await _httpClient.post(
-        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'origin': 'http://localhost',
-        },
-        body: jsonEncode({
-          'service_id': 'service_eventease',
-          'template_id': 'template_2fa',
-          'user_id': 'public_key_eventease',
-          'template_params': {
-            'to_email': toEmail,
-            'subject': subject,
-            'user_name': userName.isNotEmpty ? userName : 'User',
-            'security_code': otpCode,
-            'action_type': actionType,
-            'message_html': htmlContent,
-          },
-        }),
-      ).timeout(const Duration(seconds: 4), onTimeout: () {
-        return http.Response('timeout', 408);
-      });
-
-      if (kDebugMode) {
-        print('Relay 3 (EmailJS) response for $toEmail: ${emailJsResponse.statusCode}');
-      }
-    } catch (_) {}
   }
 
   /// Verify entered 6-digit OTP code against active challenge
