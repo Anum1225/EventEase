@@ -275,12 +275,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
 
     if (enable) {
-      final otp = authProvider.generateTwoFactorOtp(user.email);
+      final otp = await authProvider.sendTwoFactorEmailOtp(
+        user.email,
+        userName: user.name,
+        actionType: 'Enable 2FA Protection',
+      );
+      if (!mounted) return;
       final verified = await TwoFactorVerificationDialog.show(
         context,
         email: user.email,
         generatedOtp: otp,
-        onResendOtp: () async => authProvider.generateTwoFactorOtp(user.email),
+        onResendOtp: () async => authProvider.sendTwoFactorEmailOtp(
+          user.email,
+          userName: user.name,
+          actionType: 'Enable 2FA Protection',
+        ),
+        onVerifyOtp: (code) async => authProvider.verifyTwoFactorOtp(user.email, code),
       );
 
       if (verified == true && mounted) {

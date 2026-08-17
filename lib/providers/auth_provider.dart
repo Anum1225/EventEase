@@ -9,6 +9,7 @@ import '../repositories/user_repository.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/two_factor_email_service.dart';
 
 enum AuthStatus { uninitialized, authenticated, unauthenticated, loading }
 
@@ -18,6 +19,7 @@ class AuthProvider with ChangeNotifier {
   final UserRepository _userRepository;
   final StorageService _storageService;
   final NotificationService _notificationService;
+  final TwoFactorEmailService _twoFactorEmailService;
 
   AuthStatus _status = AuthStatus.uninitialized;
   UserModel? _currentUser;
@@ -29,10 +31,12 @@ class AuthProvider with ChangeNotifier {
     UserRepository? userRepository,
     StorageService? storageService,
     NotificationService? notificationService,
+    TwoFactorEmailService? twoFactorEmailService,
   })  : _authService = authService ?? AuthService(),
         _userRepository = userRepository ?? UserRepository(),
         _storageService = storageService ?? StorageService(),
-        _notificationService = notificationService ?? NotificationService() {
+        _notificationService = notificationService ?? NotificationService(),
+        _twoFactorEmailService = twoFactorEmailService ?? TwoFactorEmailService() {
     _init();
   }
 
@@ -334,8 +338,6 @@ class AuthProvider with ChangeNotifier {
     _errorMessage = null;
   }
 
-  final Map<String, String> _twoFactorOtpCache = {};
-
   /// Check whether an account has Two-Factor Authentication enabled
   Future<bool> checkUserTwoFactorRequired(String email) async {
     try {
@@ -346,24 +348,32 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Generate and store a fresh 6-digit OTP code for 2FA challenge
-  String generateTwoFactorOtp(String email) {
-    final clean = email.trim().toLowerCase();
-    final randomCode = (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
-    _twoFactorOtpCache[clean] = randomCode;
-    return randomCode;
+  /// Generate and dispatch a real 2FA verification email to the user's inbox
+  Future<String> sendTwoFactorEmailOtp(
+    String email, {
+    String? userName,
+    String actionType = 'Authorization',
+  }) async {
+    String resolvedName = userName ?? _currentUser?.name ?? '';
+    if (resolvedName.isEmpty) {
+      final user = await _userRepository.getUserByEmail(email);
+      resolvedName = user?.name ?? 'User';
+    }
+    return _twoFactorEmailService.sendTwoFactorOtp(
+      email: email,
+      userName: resolvedName,
+      actionType: actionType,
+    );
   }
 
-  /// Verify 2FA OTP code
-  bool verifyTwoFactorOtp(String email, String code) {
-    final clean = email.trim().toLowerCase();
-    final expected = _twoFactorOtpCache[clean];
-    if (code.trim() == '123456') return true; // Master testing code
-    if (expected != null && expected == code.trim()) {
-      _twoFactorOtpCache.remove(clean);
-      return true;
-    }
-    return false;
+  /// Synchronous OTP generator for offline/test environments
+  String generateTwoFactorOtp(String email) {
+    return _twoFactorEmailService.generateCode();
+  }
+
+  /// Verify entered 2FA OTP code against active memory and Firestore challenges
+  Future<bool> verifyTwoFactorOtp(String email, String code) async {
+    return _twoFactorEmailService.verifyOtp(email, code);
   }
 
   /// Toggle Two-Factor Authentication for current user

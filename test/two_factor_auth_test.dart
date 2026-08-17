@@ -15,28 +15,28 @@ void main() {
       authProvider = AuthProvider();
     });
 
-    test('generateTwoFactorOtp generates 6 digit code and verifies correctly', () {
+    test('sendTwoFactorEmailOtp generates 6 digit code and verifies correctly', () async {
       const email = 'testuser@eventease.com';
-      final otp = authProvider.generateTwoFactorOtp(email);
+      final otp = await authProvider.sendTwoFactorEmailOtp(email, userName: 'Test User');
 
       expect(otp.length, 6);
       expect(int.tryParse(otp), isNotNull);
 
       // Wrong code fails
-      expect(authProvider.verifyTwoFactorOtp(email, '000000'), isFalse);
+      expect(await authProvider.verifyTwoFactorOtp(email, '000000'), isFalse);
 
       // Correct code passes
-      expect(authProvider.verifyTwoFactorOtp(email, otp), isTrue);
+      expect(await authProvider.verifyTwoFactorOtp(email, otp), isTrue);
 
       // Replay fails (code cleared on success)
-      expect(authProvider.verifyTwoFactorOtp(email, otp), isFalse);
+      expect(await authProvider.verifyTwoFactorOtp(email, otp), isFalse);
     });
 
-    test('verifyTwoFactorOtp supports master test fallback code', () {
+    test('verifyTwoFactorOtp supports master test fallback code', () async {
       const email = 'demo@eventease.com';
-      authProvider.generateTwoFactorOtp(email);
+      await authProvider.sendTwoFactorEmailOtp(email, userName: 'Demo User');
 
-      expect(authProvider.verifyTwoFactorOtp(email, '123456'), isTrue);
+      expect(await authProvider.verifyTwoFactorOtp(email, '123456'), isTrue);
     });
 
     test('UserModel 2FA state toggling', () {

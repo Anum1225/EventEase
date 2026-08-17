@@ -41,14 +41,15 @@ class _LoginScreenState extends State<LoginScreen> {
     // Check if user has Two-Factor Authentication enabled
     final is2FaRequired = await authProvider.checkUserTwoFactorRequired(email);
     if (is2FaRequired) {
-      final initialOtp = authProvider.generateTwoFactorOtp(email);
+      final initialOtp = await authProvider.sendTwoFactorEmailOtp(email, actionType: 'Login');
       if (!mounted) return;
 
       final verified = await TwoFactorVerificationDialog.show(
         context,
         email: email,
         generatedOtp: initialOtp,
-        onResendOtp: () async => authProvider.generateTwoFactorOtp(email),
+        onResendOtp: () async => authProvider.sendTwoFactorEmailOtp(email, actionType: 'Login'),
+        onVerifyOtp: (code) async => authProvider.verifyTwoFactorOtp(email, code),
       );
 
       if (verified != true) {
