@@ -120,6 +120,7 @@ class _ReportsStatisticsScreenState extends State<ReportsStatisticsScreen> {
                           ),
                         ),
                       ],
+                    ),
                     const SizedBox(height: 12),
 
                     // Feedback & Satisfaction KPI
@@ -131,7 +132,7 @@ class _ReportsStatisticsScreenState extends State<ReportsStatisticsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.star_rounded, size: 22, color: Colors.amber),
+                                const Icon(Icons.star_rounded, size: 22, color: Colors.amber),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Overall Feedback Score',
@@ -144,7 +145,6 @@ class _ReportsStatisticsScreenState extends State<ReportsStatisticsScreen> {
                               children: [
                                 AnimatedMetricCounter(
                                   value: stats.averageSystemRating,
-                                  isDecimal: true,
                                   textStyle: AppTypography.manrope(
                                     fontSize: 32,
                                     fontWeight: FontWeight.w800,
