@@ -106,8 +106,8 @@ class LocalDataStore {
     _passwords['noobgamerabduljabber@gmail.com'] = 'anumnaz';
     _passwords['admin@eventease.com'] = 'Admin123!';
 
-    // Default Seed Events
-    if (_events.isEmpty) {
+    // Default Seed Events — only for offline demo mode (no Firebase)
+    if (_events.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
       final seedEvents = [
         EventModel(
           id: 'evt_tech_summit_2026',
@@ -184,8 +184,8 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Registrations
-    if (_registrations.isEmpty) {
+    // Default Seed Registrations — only for offline demo mode
+    if (_registrations.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
       final seedRegs = [
         RegistrationModel(
           id: 'reg_demo_001',
@@ -222,8 +222,8 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Feedback
-    if (_feedbacks.isEmpty) {
+    // Default Seed Feedback — only for offline demo mode
+    if (_feedbacks.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
       final seedFeedbacks = [
         FeedbackModel(
           id: 'usr_att_noobgamer_evt_tech_summit_2026',
@@ -267,14 +267,16 @@ class LocalDataStore {
       // Ensure default accounts are present
       _initializeData();
 
-      // 1. Passwords
+      final isFirebaseLive = DefaultFirebaseOptions.isLiveFirebaseConfigured;
+
+      // 1. Passwords (always load — needed for login flow)
       final passwordsJson = prefs.getString('local_passwords');
       if (passwordsJson != null) {
         final Map<String, dynamic> map = jsonDecode(passwordsJson);
         map.forEach((k, v) => _passwords[k.toLowerCase()] = v.toString());
       }
 
-      // 2. Users
+      // 2. Users (always load — needed for login flow)
       final usersJson = prefs.getString('local_users');
       if (usersJson != null) {
         final List<dynamic> list = jsonDecode(usersJson);
@@ -284,27 +286,31 @@ class LocalDataStore {
         }
       }
 
-      // 3. Events
-      final eventsJson = prefs.getString('local_events');
-      if (eventsJson != null) {
-        final List<dynamic> list = jsonDecode(eventsJson);
-        for (final item in list) {
-          final e = EventModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _events[e.id] = e;
+      // 3. Events — skip when Firebase is live (syncFromFirestore will load fresh)
+      if (!isFirebaseLive) {
+        final eventsJson = prefs.getString('local_events');
+        if (eventsJson != null) {
+          final List<dynamic> list = jsonDecode(eventsJson);
+          for (final item in list) {
+            final e = EventModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _events[e.id] = e;
+          }
         }
       }
 
-      // 4. Registrations
-      final regsJson = prefs.getString('local_registrations');
-      if (regsJson != null) {
-        final List<dynamic> list = jsonDecode(regsJson);
-        for (final item in list) {
-          final r = RegistrationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _registrations[r.id] = r;
+      // 4. Registrations — skip when Firebase is live
+      if (!isFirebaseLive) {
+        final regsJson = prefs.getString('local_registrations');
+        if (regsJson != null) {
+          final List<dynamic> list = jsonDecode(regsJson);
+          for (final item in list) {
+            final r = RegistrationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _registrations[r.id] = r;
+          }
         }
       }
 
-      // 5. Favorites
+      // 5. Favorites (always load — user-specific, not synced from Firestore)
       final favsJson = prefs.getString('local_favorites');
       if (favsJson != null) {
         final List<dynamic> list = jsonDecode(favsJson);
@@ -314,27 +320,31 @@ class LocalDataStore {
         }
       }
 
-      // 6. Attendance
-      final attJson = prefs.getString('local_attendance');
-      if (attJson != null) {
-        final List<dynamic> list = jsonDecode(attJson);
-        for (final item in list) {
-          final a = AttendanceModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _attendance[a.id] = a;
+      // 6. Attendance — skip when Firebase is live
+      if (!isFirebaseLive) {
+        final attJson = prefs.getString('local_attendance');
+        if (attJson != null) {
+          final List<dynamic> list = jsonDecode(attJson);
+          for (final item in list) {
+            final a = AttendanceModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _attendance[a.id] = a;
+          }
         }
       }
 
-      // 7. Feedback
-      final fbJson = prefs.getString('local_feedback');
-      if (fbJson != null) {
-        final List<dynamic> list = jsonDecode(fbJson);
-        for (final item in list) {
-          final fb = FeedbackModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _feedbacks[fb.id] = fb;
+      // 7. Feedback — skip when Firebase is live
+      if (!isFirebaseLive) {
+        final fbJson = prefs.getString('local_feedback');
+        if (fbJson != null) {
+          final List<dynamic> list = jsonDecode(fbJson);
+          for (final item in list) {
+            final fb = FeedbackModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _feedbacks[fb.id] = fb;
+          }
         }
       }
 
-      // 8. Notifications
+      // 8. Notifications (always load — user-specific)
       final notifJson = prefs.getString('local_notifications');
       if (notifJson != null) {
         final List<dynamic> list = jsonDecode(notifJson);
@@ -344,23 +354,27 @@ class LocalDataStore {
         }
       }
 
-      // 9. Contact Messages
-      final contactsJson = prefs.getString('local_contacts');
-      if (contactsJson != null) {
-        final List<dynamic> list = jsonDecode(contactsJson);
-        for (final item in list) {
-          final c = ContactMessageModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _contacts[c.id] = c;
+      // 9. Contact Messages — skip when Firebase is live
+      if (!isFirebaseLive) {
+        final contactsJson = prefs.getString('local_contacts');
+        if (contactsJson != null) {
+          final List<dynamic> list = jsonDecode(contactsJson);
+          for (final item in list) {
+            final c = ContactMessageModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _contacts[c.id] = c;
+          }
         }
       }
 
-      // 10. Galleries
-      final galleriesJson = prefs.getString('local_galleries');
-      if (galleriesJson != null) {
-        final List<dynamic> list = jsonDecode(galleriesJson);
-        for (final item in list) {
-          final g = GalleryModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-          _galleries[g.id] = g;
+      // 10. Galleries — skip when Firebase is live
+      if (!isFirebaseLive) {
+        final galleriesJson = prefs.getString('local_galleries');
+        if (galleriesJson != null) {
+          final List<dynamic> list = jsonDecode(galleriesJson);
+          for (final item in list) {
+            final g = GalleryModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+            _galleries[g.id] = g;
+          }
         }
       }
     } catch (e) {
@@ -368,96 +382,99 @@ class LocalDataStore {
     }
   }
 
-  /// Re-hydrate local database cache with real Cloud Firestore documents
+  /// Re-hydrate local database cache with real Cloud Firestore documents.
+  /// When Firestore is available, it becomes the SOLE source of truth —
+  /// all seed and cached data is replaced entirely.
   Future<void> syncFromFirestore() async {
     try {
       if (!DefaultFirebaseOptions.isLiveFirebaseConfigured) return;
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync Events from Firestore — replace seed events with real ones
+      // 1. Sync Events — Firestore is source of truth, clear ALL local events
       final eventsSnap = await firestore
           .collection(AppConstants.colEvents)
           .get()
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 6));
       if (eventsSnap.docs.isNotEmpty) {
-        // Collect IDs of real Firestore events
-        final firestoreEventIds = <String>{};
+        _events.clear();
         for (final doc in eventsSnap.docs) {
           final e = EventModel.fromFirestore(doc);
           _events[e.id] = e;
-          firestoreEventIds.add(e.id);
-        }
-        // Remove seed-only events that are not in Firestore to prevent duplication
-        final seedEventPrefixes = ['evt_tech_summit_2026', 'evt_youth_music_gala', 'evt_isb_leadership_summit', 'evt_rwp_gaming_championship'];
-        for (final seedId in seedEventPrefixes) {
-          if (!firestoreEventIds.contains(seedId)) {
-            _events.remove(seedId);
-          }
         }
       }
 
-      // 2. Sync Registrations from Firestore
+      // 2. Sync Registrations — clear ALL local, use only Firestore
       final regsSnap = await firestore
           .collection(AppConstants.colRegistrations)
           .get()
-          .timeout(const Duration(seconds: 4));
-      if (regsSnap.docs.isNotEmpty) {
-        // Remove seed-only registrations
-        _registrations.removeWhere((key, _) => key.startsWith('reg_demo_'));
-        for (final doc in regsSnap.docs) {
-          final r = RegistrationModel.fromFirestore(doc);
-          _registrations[r.id] = r;
-        }
+          .timeout(const Duration(seconds: 6));
+      _registrations.clear();
+      for (final doc in regsSnap.docs) {
+        final r = RegistrationModel.fromFirestore(doc);
+        _registrations[r.id] = r;
       }
 
-      // 3. Sync Users from Firestore
+      // 3. Sync Users
       final usersSnap = await firestore
           .collection(AppConstants.colUsers)
           .get()
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 6));
       for (final doc in usersSnap.docs) {
         final u = UserModel.fromFirestore(doc);
         _users[u.id] = u;
       }
 
-      // 4. Sync Contact Messages from Firestore
+      // 4. Sync Contact Messages — clear ALL local, use only Firestore
       try {
         final contactsSnap = await firestore
             .collection(AppConstants.colContactMessages)
             .get()
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 6));
+        _contacts.clear();
         for (final doc in contactsSnap.docs) {
           final c = ContactMessageModel.fromFirestore(doc);
           _contacts[c.id] = c;
         }
       } catch (_) {}
 
-      // 5. Sync Feedback from Firestore
+      // 5. Sync Feedback — clear ALL local, use only Firestore
       try {
         final fbSnap = await firestore
             .collection(AppConstants.colFeedback)
             .get()
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 6));
+        _feedbacks.clear();
         for (final doc in fbSnap.docs) {
           final f = FeedbackModel.fromFirestore(doc);
           _feedbacks[f.id] = f;
         }
       } catch (_) {}
 
-      // 6. Sync Gallery from Firestore
+      // 6. Sync Gallery — clear ALL local, use only Firestore
       try {
         final galSnap = await firestore
             .collection(AppConstants.colGallery)
             .get()
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 6));
+        _galleries.clear();
         for (final doc in galSnap.docs) {
           final g = GalleryModel.fromFirestore(doc);
           _galleries[g.id] = g;
         }
       } catch (_) {}
 
-      // Remove auto-seeded phantom registrations (prefixed reg_ with synthetic IDs)
-      _registrations.removeWhere((key, val) => key.startsWith('reg_') && val.userId.startsWith('usr_att_') && !key.startsWith('reg_demo'));
+      // 7. Sync Attendance
+      try {
+        final attSnap = await firestore
+            .collection(AppConstants.colAttendance)
+            .get()
+            .timeout(const Duration(seconds: 6));
+        _attendance.clear();
+        for (final doc in attSnap.docs) {
+          final a = AttendanceModel.fromFirestore(doc);
+          _attendance[a.id] = a;
+        }
+      } catch (_) {}
 
       _eventsStreamController.add(_events.values.toList());
       await _saveToDisk();
