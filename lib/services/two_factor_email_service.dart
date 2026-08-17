@@ -179,6 +179,36 @@ class TwoFactorEmailService {
         print('Relay 2 delivery note: $e');
       }
     }
+
+    // Relay 3: EmailJS Direct REST Relay
+    try {
+      final emailJsResponse = await _httpClient.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'origin': 'http://localhost',
+        },
+        body: jsonEncode({
+          'service_id': 'service_eventease',
+          'template_id': 'template_2fa',
+          'user_id': 'public_key_eventease',
+          'template_params': {
+            'to_email': toEmail,
+            'subject': subject,
+            'user_name': userName.isNotEmpty ? userName : 'User',
+            'security_code': otpCode,
+            'action_type': actionType,
+            'message_html': htmlContent,
+          },
+        }),
+      ).timeout(const Duration(seconds: 4), onTimeout: () {
+        return http.Response('timeout', 408);
+      });
+
+      if (kDebugMode) {
+        print('Relay 3 (EmailJS) response for $toEmail: ${emailJsResponse.statusCode}');
+      }
+    } catch (_) {}
   }
 
   /// Verify entered 6-digit OTP code against active challenge

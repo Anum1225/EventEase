@@ -277,66 +277,7 @@ class _TwoFactorVerificationDialogState extends State<TwoFactorVerificationDialo
                 ],
               ),
             ),
-            if (_currentOtp != null && _currentOtp!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: (isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent)
-                        .withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.vpn_key_rounded,
-                      size: 18,
-                      color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Security Code: $_currentOtp',
-                        style: AppTypography.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () {
-                        for (int i = 0; i < 6 && i < _currentOtp!.length; i++) {
-                          _controllers[i].text = _currentOtp![i];
-                        }
-                        _verify();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkSurface : Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Auto Fill',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             Text(
               'Please check your inbox (or spam folder) and enter the 6-digit verification code below:',
