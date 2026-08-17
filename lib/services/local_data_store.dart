@@ -374,14 +374,26 @@ class LocalDataStore {
       if (!DefaultFirebaseOptions.isLiveFirebaseConfigured) return;
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync Events from Firestore
+      // 1. Sync Events from Firestore — replace seed events with real ones
       final eventsSnap = await firestore
           .collection(AppConstants.colEvents)
           .get()
           .timeout(const Duration(seconds: 4));
-      for (final doc in eventsSnap.docs) {
-        final e = EventModel.fromFirestore(doc);
-        _events[e.id] = e;
+      if (eventsSnap.docs.isNotEmpty) {
+        // Collect IDs of real Firestore events
+        final firestoreEventIds = <String>{};
+        for (final doc in eventsSnap.docs) {
+          final e = EventModel.fromFirestore(doc);
+          _events[e.id] = e;
+          firestoreEventIds.add(e.id);
+        }
+        // Remove seed-only events that are not in Firestore to prevent duplication
+        final seedEventPrefixes = ['evt_tech_summit_2026', 'evt_youth_music_gala', 'evt_isb_leadership_summit', 'evt_rwp_gaming_championship'];
+        for (final seedId in seedEventPrefixes) {
+          if (!firestoreEventIds.contains(seedId)) {
+            _events.remove(seedId);
+          }
+        }
       }
 
       // 2. Sync Registrations from Firestore
@@ -389,9 +401,13 @@ class LocalDataStore {
           .collection(AppConstants.colRegistrations)
           .get()
           .timeout(const Duration(seconds: 4));
-      for (final doc in regsSnap.docs) {
-        final r = RegistrationModel.fromFirestore(doc);
-        _registrations[r.id] = r;
+      if (regsSnap.docs.isNotEmpty) {
+        // Remove seed-only registrations
+        _registrations.removeWhere((key, _) => key.startsWith('reg_demo_'));
+        for (final doc in regsSnap.docs) {
+          final r = RegistrationModel.fromFirestore(doc);
+          _registrations[r.id] = r;
+        }
       }
 
       // 3. Sync Users from Firestore
@@ -403,6 +419,45 @@ class LocalDataStore {
         final u = UserModel.fromFirestore(doc);
         _users[u.id] = u;
       }
+
+      // 4. Sync Contact Messages from Firestore
+      try {
+        final contactsSnap = await firestore
+            .collection(AppConstants.colContactMessages)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        for (final doc in contactsSnap.docs) {
+          final c = ContactMessageModel.fromFirestore(doc);
+          _contacts[c.id] = c;
+        }
+      } catch (_) {}
+
+      // 5. Sync Feedback from Firestore
+      try {
+        final fbSnap = await firestore
+            .collection(AppConstants.colFeedback)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        for (final doc in fbSnap.docs) {
+          final f = FeedbackModel.fromFirestore(doc);
+          _feedbacks[f.id] = f;
+        }
+      } catch (_) {}
+
+      // 6. Sync Gallery from Firestore
+      try {
+        final galSnap = await firestore
+            .collection(AppConstants.colGallery)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        for (final doc in galSnap.docs) {
+          final g = GalleryModel.fromFirestore(doc);
+          _galleries[g.id] = g;
+        }
+      } catch (_) {}
+
+      // Remove auto-seeded phantom registrations (prefixed reg_ with synthetic IDs)
+      _registrations.removeWhere((key, val) => key.startsWith('reg_') && val.userId.startsWith('usr_att_') && !key.startsWith('reg_demo'));
 
       _eventsStreamController.add(_events.values.toList());
       await _saveToDisk();
@@ -1044,51 +1099,8 @@ class LocalDataStore {
   }
 
   List<RegistrationModel> getEventParticipants(String eventId, [List<String>? organizerEventIds]) {
-    final sampleAttendees = [
-      {'name': 'Abdul Jabbar', 'email': 'noobgamerabduljabber@gmail.com'},
-      {'name': 'Fatima Zahra', 'email': 'fatima.zahra@gmail.com'},
-      {'name': 'Hamza Tariq', 'email': 'hamza.tariq@gmail.com'},
-      {'name': 'Ayesha Khan', 'email': 'ayesha.khan@gmail.com'},
-      {'name': 'Zain Malik', 'email': 'zain.malik@gmail.com'},
-      {'name': 'Sana Mir', 'email': 'sana.mir@gmail.com'},
-    ];
-
+    // Return real registrations only — no phantom auto-seeding
     if (eventId.isEmpty || eventId == 'all') {
-      final relevantEvents = (organizerEventIds != null && organizerEventIds.isNotEmpty)
-          ? _events.values.where((e) => organizerEventIds.contains(e.id)).toList()
-          : _events.values.toList();
-
-      for (final ev in relevantEvents) {
-        if (ev.registeredCount > 0) {
-          final existing = _registrations.values.where((r) => r.eventId == ev.id || (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim()).length;
-          if (ev.registeredCount > existing) {
-            final needed = ev.registeredCount - existing;
-            for (int i = 0; i < needed; i++) {
-              final regId = 'reg_${ev.id.replaceAll('evt_', '')}_${existing + i + 1}';
-              if (!_registrations.containsKey(regId)) {
-                final sample = sampleAttendees[(existing + i) % sampleAttendees.length];
-                final passToken = 'EASE-${ev.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${existing + i + 1}';
-                _registrations[regId] = RegistrationModel(
-                  id: regId,
-                  eventId: ev.id,
-                  userId: 'usr_att_${existing + i + 1}',
-                  userName: sample['name']!,
-                  userEmail: sample['email']!,
-                  eventTitle: ev.title,
-                  eventDate: ev.date,
-                  eventLocation: ev.location,
-                  eventBanner: ev.imageUrl,
-                  eventCategory: ev.category,
-                  registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
-                  status: AppConstants.registrationStatusRegistered,
-                  qrCode: passToken,
-                );
-              }
-            }
-          }
-        }
-      }
-
       if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
         final list = _registrations.values.where((r) => organizerEventIds.contains(r.eventId)).toList();
         list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
@@ -1099,47 +1111,14 @@ class LocalDataStore {
       return list;
     }
 
+    // Single event: match by exact eventId or by event title
     EventModel? ev = _events[eventId];
     if (ev == null) {
       for (final e in _events.values) {
         if (e.id == eventId ||
-            e.id.toLowerCase().contains(eventId.toLowerCase()) ||
-            eventId.toLowerCase().contains(e.id.toLowerCase()) ||
             e.title.trim().toLowerCase() == eventId.trim().toLowerCase()) {
           ev = e;
           break;
-        }
-      }
-    }
-
-    final targetEv = ev;
-    final minCount = targetEv != null ? (targetEv.registeredCount > 0 ? targetEv.registeredCount : 2) : 0;
-    if (targetEv != null && minCount > 0) {
-      final existing = _registrations.values.where((r) => r.eventId == targetEv.id || (r.eventTitle ?? '').toLowerCase().trim() == targetEv.title.toLowerCase().trim()).length;
-      if (minCount > existing) {
-        final needed = minCount - existing;
-        for (int i = 0; i < needed; i++) {
-          final sample = sampleAttendees[(existing + i) % sampleAttendees.length];
-          final regId = 'reg_${targetEv.id.replaceAll('evt_', '')}_${existing + i + 1}';
-          if (!_registrations.containsKey(regId)) {
-            final passToken = 'EASE-${targetEv.title.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}-00${existing + i + 1}';
-            final newReg = RegistrationModel(
-              id: regId,
-              eventId: targetEv.id,
-              userId: 'usr_att_${existing + i + 1}',
-              userName: sample['name']!,
-              userEmail: sample['email']!,
-              eventTitle: targetEv.title,
-              eventDate: targetEv.date,
-              eventLocation: targetEv.location,
-              eventBanner: targetEv.imageUrl,
-              eventCategory: targetEv.category,
-              registeredAt: DateTime.now().subtract(Duration(hours: (i + 1) * 8)),
-              status: AppConstants.registrationStatusRegistered,
-              qrCode: passToken,
-            );
-            _registrations[regId] = newReg;
-          }
         }
       }
     }

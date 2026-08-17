@@ -316,19 +316,16 @@ class RegistrationRepository {
       } catch (_) {}
     }
 
+    // Always merge local registrations with Firestore results
     final localList = _localStore.getEventParticipants(eventId, organizerEventIds);
-    if (eventId.isNotEmpty && eventId != 'all') {
-      localList.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
-      return localList;
-    }
-
     for (final loc in localList) {
       if (!list.any((r) => r.id == loc.id)) {
         list.add(loc);
       }
     }
 
-    if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+    // Filter to organizer's events only when showing 'all'
+    if (organizerEventIds != null && organizerEventIds.isNotEmpty && (eventId.isEmpty || eventId == 'all')) {
       list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
     }
 
