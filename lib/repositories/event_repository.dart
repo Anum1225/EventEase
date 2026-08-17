@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/event_time_helper.dart';
 import '../firebase_options.dart';
 import '../models/event_model.dart';
 import '../services/local_data_store.dart';
@@ -306,5 +307,32 @@ class EventRepository {
         }).timeout(const Duration(milliseconds: 3000));
       } catch (_) {}
     }
+  }
+
+  /// Automatically scan and complete expired events
+  Future<List<EventModel>> checkAndCompleteExpiredEvents() async {
+    final List<EventModel> newlyCompleted = _localStore.checkAndCompleteExpiredEvents();
+
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
+      try {
+        final snap = await _eventsCol!
+            .where('status', isEqualTo: AppConstants.eventStatusApproved)
+            .get()
+            .timeout(const Duration(milliseconds: 3000));
+        for (final doc in snap.docs) {
+          final ev = EventModel.fromFirestore(doc);
+          if (EventTimeHelper.hasEventEnded(ev)) {
+            await doc.reference.update({
+              'status': AppConstants.eventStatusCompleted,
+            });
+            if (!newlyCompleted.any((item) => item.id == ev.id)) {
+              newlyCompleted.add(ev.copyWith(status: AppConstants.eventStatusCompleted));
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return newlyCompleted;
   }
 }

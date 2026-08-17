@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class EventProvider with ChangeNotifier {
 
   bool _isLoading = false;
   String? _errorMessage;
+  Timer? _autoExpiryTimer;
 
   // Filter state
   String _selectedCategory = 'all';
@@ -31,6 +33,7 @@ class EventProvider with ChangeNotifier {
     EventRepository? eventRepository,
     StorageService? storageService,
     NotificationRepository? notificationRepository,
+    bool enableAutoExpiryTimer = true,
   })  : _eventRepository = eventRepository ?? EventRepository(),
         _storageService = storageService ?? StorageService(),
         _notificationRepository = notificationRepository ?? NotificationRepository() {
@@ -39,6 +42,53 @@ class EventProvider with ChangeNotifier {
     _pendingApprovalEvents = _eventRepository.getPendingApprovalEventsSync();
     _allAdminEvents = _eventRepository.getAllEventsSync();
     loadDiscoverableEvents(silent: true);
+    checkAndBroadcastExpiredEvents();
+    if (enableAutoExpiryTimer &&
+        !WidgetsBinding.instance.runtimeType.toString().toLowerCase().contains('test')) {
+      _autoExpiryTimer =
+          Timer.periodic(const Duration(minutes: 1), (_) => checkAndBroadcastExpiredEvents());
+    }
+  }
+
+  void stopAutoExpiryTimer() {
+    _autoExpiryTimer?.cancel();
+    _autoExpiryTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _autoExpiryTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Automatically detect ended events, mark them completed, and send notifications
+  Future<void> checkAndBroadcastExpiredEvents() async {
+    try {
+      final newlyCompleted = await _eventRepository.checkAndCompleteExpiredEvents();
+      for (final event in newlyCompleted) {
+        // Broadcast completion notice and feedback request to all registered attendees
+        await _notificationRepository.broadcastToEventParticipants(
+          eventId: event.id,
+          title: 'Event Completed! 🎉',
+          message: '"${event.title}" has concluded. Share your experience by leaving a review and rating!',
+          type: 'event_completed',
+        );
+
+        // Also notify organizer
+        if (event.organizerId.isNotEmpty) {
+          await _notificationRepository.sendNotification(
+            userId: event.organizerId,
+            title: 'Event Concluded 🏁',
+            message: 'Your event "${event.title}" has completed. Check attendee feedback and attendance stats.',
+            type: 'event_completed',
+            eventId: event.id,
+          );
+        }
+      }
+      if (newlyCompleted.isNotEmpty) {
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   List<EventModel> get discoverableEvents => _discoverableEvents;

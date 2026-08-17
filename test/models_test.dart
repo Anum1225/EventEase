@@ -21,14 +21,21 @@ void main() {
       expect(user.isOrganizer, isTrue);
       expect(user.isAdmin, isFalse);
       expect(user.isAttendee, isFalse);
+      expect(user.isTwoFactorEnabled, isFalse);
 
       final map = user.toMap();
       expect(map['email'], 'jane@example.com');
       expect(map['role'], 'organizer');
+      expect(map['isTwoFactorEnabled'], isFalse);
 
-      final fromMap = UserModel.fromMap(map, 'u-123');
+      final userWith2FA = user.copyWith(isTwoFactorEnabled: true);
+      expect(userWith2FA.isTwoFactorEnabled, isTrue);
+      expect(userWith2FA.toMap()['isTwoFactorEnabled'], isTrue);
+
+      final fromMap = UserModel.fromMap(userWith2FA.toMap(), 'u-123');
       expect(fromMap.name, 'Jane Doe');
       expect(fromMap.id, 'u-123');
+      expect(fromMap.isTwoFactorEnabled, isTrue);
     });
   });
 

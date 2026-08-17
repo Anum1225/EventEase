@@ -198,4 +198,40 @@ class UserRepository {
       } catch (_) {}
     }
   }
+
+  /// Fetch user by email address
+  Future<UserModel?> getUserByEmail(String email) async {
+    final clean = email.trim().toLowerCase();
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _usersCol != null) {
+      try {
+        final snap = await _usersCol!
+            .where('email', isEqualTo: clean)
+            .limit(1)
+            .get()
+            .timeout(const Duration(milliseconds: 2500));
+        if (snap.docs.isNotEmpty) {
+          return UserModel.fromFirestore(snap.docs.first);
+        }
+      } catch (_) {}
+    }
+    final all = _localStore.getAllUsers();
+    final match = all.where((u) => u.email.toLowerCase() == clean);
+    return match.isNotEmpty ? match.first : null;
+  }
+
+  /// Toggle Two-Factor Authentication (2FA) for user
+  Future<void> toggleTwoFactor(String userId, bool isEnabled) async {
+    final existing = await getUser(userId);
+    if (existing != null) {
+      final updated = existing.copyWith(isTwoFactorEnabled: isEnabled);
+      _localStore.updateUser(updated);
+    }
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _usersCol != null) {
+      try {
+        await _usersCol!.doc(userId).update({
+          'isTwoFactorEnabled': isEnabled,
+        });
+      } catch (_) {}
+    }
+  }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/event_time_helper.dart';
 import '../models/user_model.dart';
 import '../models/event_model.dart';
 import '../models/registration_model.dart';
@@ -581,6 +582,24 @@ class LocalDataStore {
     _events.remove(eventId);
     _eventsStreamController.add(_events.values.toList());
     _saveToDisk();
+  }
+
+  /// Automatically transition approved events whose scheduled end-time has passed to completed status
+  List<EventModel> checkAndCompleteExpiredEvents() {
+    final List<EventModel> newlyCompleted = [];
+    for (final entry in _events.entries) {
+      final ev = entry.value;
+      if (ev.isApproved && EventTimeHelper.hasEventEnded(ev)) {
+        final updated = ev.copyWith(status: AppConstants.eventStatusCompleted);
+        _events[entry.key] = updated;
+        newlyCompleted.add(updated);
+      }
+    }
+    if (newlyCompleted.isNotEmpty) {
+      _eventsStreamController.add(_events.values.toList());
+      _saveToDisk();
+    }
+    return newlyCompleted;
   }
 
   // =========================================================================

@@ -96,6 +96,8 @@ class _SubmitFeedbackScreenState extends State<SubmitFeedbackScreen> {
       userName: user.name,
       rating: _selectedRating,
       comment: _commentController.text.trim().isNotEmpty ? _commentController.text.trim() : null,
+      organizerId: _event!.organizerId,
+      eventTitle: _event!.title,
     );
 
     if (success && mounted) {

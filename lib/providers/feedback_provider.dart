@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/feedback_model.dart';
 import '../repositories/feedback_repository.dart';
+import '../repositories/notification_repository.dart';
 
-/// State management for post-event feedback, reviews, and average rating calculations
+/// State management for post-event feedback, reviews, and real-time streaming calculations
 class FeedbackProvider with ChangeNotifier {
   final FeedbackRepository _feedbackRepository;
+  final NotificationRepository _notificationRepository;
+  StreamSubscription<List<FeedbackModel>>? _feedbackSubscription;
+  String? _currentStreamEventId;
 
   final Map<String, List<FeedbackModel>> _eventFeedbackCache = {};
   final Map<String, double> _eventAverageRatings = {};
@@ -12,8 +17,11 @@ class FeedbackProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  FeedbackProvider({FeedbackRepository? feedbackRepository})
-      : _feedbackRepository = feedbackRepository ?? FeedbackRepository();
+  FeedbackProvider({
+    FeedbackRepository? feedbackRepository,
+    NotificationRepository? notificationRepository,
+  })  : _feedbackRepository = feedbackRepository ?? FeedbackRepository(),
+        _notificationRepository = notificationRepository ?? NotificationRepository();
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
@@ -28,6 +36,34 @@ class FeedbackProvider with ChangeNotifier {
 
   bool hasSubmittedForEvent(String eventId) =>
       _userSubmittedCache[eventId] ?? false;
+
+  /// Real-time stream subscription for live comments and reviews
+  void subscribeToEventFeedback(String eventId) {
+    if (_currentStreamEventId == eventId && _feedbackSubscription != null) {
+      return;
+    }
+    _currentStreamEventId = eventId;
+    _feedbackSubscription?.cancel();
+
+    _isLoading = true;
+    notifyListeners();
+
+    _feedbackSubscription = _feedbackRepository.streamEventFeedback(eventId).listen((list) {
+      _eventFeedbackCache[eventId] = list;
+      if (list.isNotEmpty) {
+        final sum = list.fold<int>(0, (prev, f) => prev + f.rating);
+        _eventAverageRatings[eventId] = sum / list.length;
+      } else {
+        _eventAverageRatings[eventId] = 0.0;
+      }
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (err) {
+      _errorMessage = err.toString();
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
 
   Future<void> loadEventFeedback(String eventId) async {
     _isLoading = true;
@@ -71,6 +107,8 @@ class FeedbackProvider with ChangeNotifier {
     required String userName,
     required int rating,
     String? comment,
+    String? organizerId,
+    String? eventTitle,
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
@@ -85,6 +123,21 @@ class FeedbackProvider with ChangeNotifier {
         comment: comment,
       );
 
+      // Send immediate alert notification to the event's organizer
+      if (organizerId != null && organizerId.isNotEmpty) {
+        final starStr = List.generate(rating, (_) => '★').join();
+        final commentSnippet = (comment != null && comment.trim().isNotEmpty)
+            ? ': "$comment"'
+            : '';
+        await _notificationRepository.sendNotification(
+          userId: organizerId,
+          title: 'New Review on ${eventTitle ?? "Event"}',
+          message: '$userName gave $rating stars ($starStr)$commentSnippet',
+          type: 'feedback',
+          eventId: eventId,
+        );
+      }
+
       _userSubmittedCache[eventId] = true;
       await loadEventFeedback(eventId);
 
@@ -97,5 +150,11 @@ class FeedbackProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _feedbackSubscription?.cancel();
+    super.dispose();
   }
 }

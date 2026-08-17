@@ -13,6 +13,7 @@ class UserModel {
   final String status; // 'active', 'deactivated'
   final DateTime createdAt;
   final String? fcmToken;
+  final bool isTwoFactorEnabled;
   final Map<String, bool> notificationPreferences;
 
   const UserModel({
@@ -27,6 +28,7 @@ class UserModel {
     this.status = 'active',
     required this.createdAt,
     this.fcmToken,
+    this.isTwoFactorEnabled = false,
     this.notificationPreferences = const {
       'reminders': true,
       'announcements': true,
@@ -53,6 +55,7 @@ class UserModel {
     String? status,
     DateTime? createdAt,
     String? fcmToken,
+    bool? isTwoFactorEnabled,
     Map<String, bool>? notificationPreferences,
   }) {
     return UserModel(
@@ -67,6 +70,7 @@ class UserModel {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       fcmToken: fcmToken ?? this.fcmToken,
+      isTwoFactorEnabled: isTwoFactorEnabled ?? this.isTwoFactorEnabled,
       notificationPreferences: notificationPreferences ?? this.notificationPreferences,
     );
   }
@@ -102,6 +106,7 @@ class UserModel {
       status: map['status'] as String? ?? map['Status'] as String? ?? 'active',
       createdAt: parseDate(map['createdAt'] ?? map['CreatedAt']),
       fcmToken: map['fcmToken'] as String?,
+      isTwoFactorEnabled: map['isTwoFactorEnabled'] == true || map['twoFactorEnabled'] == true,
       notificationPreferences: parsePrefs(map['notificationPreferences']),
     );
   }
@@ -122,6 +127,7 @@ class UserModel {
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
       'fcmToken': fcmToken,
+      'isTwoFactorEnabled': isTwoFactorEnabled,
       'notificationPreferences': notificationPreferences,
     };
   }

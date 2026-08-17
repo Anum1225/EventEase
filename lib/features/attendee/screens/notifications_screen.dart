@@ -184,7 +184,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             tooltip: 'Preferences',
             onPressed: () => _showPreferencesDialog(context),
           ),
-          if (notifProvider.unreadCount > 0 && user != null)
+          if (notifProvider.unreadCount > 0)
             TextButton(
               onPressed: () => notifProvider.markAllAsRead(user.id),
               child: const Text('Mark all read'),

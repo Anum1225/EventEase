@@ -60,14 +60,16 @@ class _EmptyStateViewState extends State<EmptyStateView>
     final accentColor = isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent;
 
     return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.isCompact ? 16.0 : 32.0,
-          vertical: widget.isCompact ? 20.0 : 40.0,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isCompact ? 16.0 : 32.0,
+            vertical: widget.isCompact ? 12.0 : 24.0,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Ambient Pulsing Glow + Icon Container
             Stack(
@@ -158,6 +160,7 @@ class _EmptyStateViewState extends State<EmptyStateView>
             ],
           ],
         ),
+      ),
       ),
     );
   }

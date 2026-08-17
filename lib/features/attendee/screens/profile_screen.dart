@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +16,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirmation_dialog.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../auth/screens/two_factor_verification_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -269,6 +269,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _toggleTwoFactorSetting(bool enable) async {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+    if (user == null) return;
+
+    if (enable) {
+      final otp = authProvider.generateTwoFactorOtp(user.email);
+      final verified = await TwoFactorVerificationDialog.show(
+        context,
+        email: user.email,
+        generatedOtp: otp,
+        onResendOtp: () async => authProvider.generateTwoFactorOtp(user.email),
+      );
+
+      if (verified == true && mounted) {
+        await authProvider.toggleTwoFactor(true);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Two-Factor Authentication enabled successfully! 🛡️'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } else {
+      final confirm = await ConfirmationDialog.show(
+        context,
+        title: 'Disable 2FA?',
+        message: 'Are you sure you want to turn off Two-Factor Authentication? Your account will be less secure.',
+        confirmLabel: 'Disable 2FA',
+        isDestructive: true,
+      );
+
+      if (confirm && mounted) {
+        await authProvider.toggleTwoFactor(false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Two-Factor Authentication disabled.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -519,6 +562,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: const Text('Change Password'),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _showChangePasswordDialog(context),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.shield_outlined,
+                      color: user?.isTwoFactorEnabled == true
+                          ? (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                          : null,
+                    ),
+                    title: const Text('Two-Factor Authentication (2FA)'),
+                    subtitle: Text(
+                      user?.isTwoFactorEnabled == true
+                          ? 'Protected with 6-digit verification code'
+                          : 'Extra security for your login session',
+                      style: TextStyle(
+                        color: user?.isTwoFactorEnabled == true
+                            ? (isDark ? AppColors.darkSuccess : AppColors.lightSuccess)
+                            : null,
+                        fontSize: 12,
+                      ),
+                    ),
+                    trailing: Switch(
+                      value: user?.isTwoFactorEnabled ?? false,
+                      onChanged: (val) => _toggleTwoFactorSetting(val),
+                    ),
                   ),
                   const Divider(),
                   ListTile(

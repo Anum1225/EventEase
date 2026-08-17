@@ -28,13 +28,6 @@ class AppNetworkImage extends StatelessWidget {
     this.fallbackIcon = Icons.event_seat_rounded,
   });
 
-  bool get _isValidUrl {
-    if (imageUrl == null) return false;
-    final url = imageUrl!.trim();
-    if (url.isEmpty) return false;
-    return url.startsWith('http://') || url.startsWith('https://');
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

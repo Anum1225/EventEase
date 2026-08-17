@@ -8,11 +8,14 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/category_chip.dart';
 import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/map_location_picker_dialog.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../models/event_model.dart';
 import '../../../repositories/event_repository.dart';
+import '../../../repositories/notification_repository.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/registration_provider.dart';
 import '../../../providers/feedback_provider.dart';
@@ -135,6 +138,130 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         ),
       );
     }
+  }
+
+  void _showContactOrganizerDialog() {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+    if (user == null) {
+      context.push('/login?reason=${Uri.encodeComponent('Contacting Organizer')}');
+      return;
+    }
+    if (_event == null) return;
+
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        bool isSending = false;
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 32,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 18),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Message Organizer',
+                          style: AppTypography.manrope(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ask questions or send comments regarding "${_event!.title}" directly to ${_event!.organizerName ?? "the organizer"}.',
+                      style: AppTypography.manrope(
+                        fontSize: 13,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    AppTextField(
+                      label: 'Your Question / Comment',
+                      hint: 'Type your message or inquiry for the event host...',
+                      controller: messageController,
+                      maxLines: 4,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter your message' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    AppButton(
+                      text: 'Send Message to Organizer',
+                      icon: Icons.send_rounded,
+                      isLoading: isSending,
+                      onPressed: isSending
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setModalState(() => isSending = true);
+
+                              final notifRepo = NotificationRepository();
+                              await notifRepo.sendNotification(
+                                userId: _event!.organizerId,
+                                title: 'Attendee Question on "${_event!.title}"',
+                                message: '${user.name}: ${messageController.text.trim()}',
+                                type: 'announcement',
+                                eventId: _event!.id,
+                              );
+
+                              if (modalCtx.mounted) {
+                                Navigator.pop(modalCtx);
+                              }
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Message sent to organizer successfully!'),
+                                    backgroundColor: Color(0xFF10B981),
+                                  ),
+                                );
+                              }
+                            },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -401,46 +528,68 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           ],
                         ),
                         const Divider(height: 24),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                                    .withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.location_on_rounded,
-                                size: 22,
-                                color: isDark ? AppColors.darkAccent : AppColors.lightTextPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Location & Venue',
-                                    style: AppTypography.manrope(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: primaryTextColor,
-                                    ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            MapLocationPickerDialog.show(
+                              context,
+                              initialLocation: event.location,
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.darkAccent : AppColors.lightAccent)
+                                        .withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  Text(
-                                    event.location,
-                                    style: AppTypography.manrope(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w400,
-                                      color: secondaryTextColor,
-                                    ),
+                                  child: Icon(
+                                    Icons.location_on_rounded,
+                                    size: 22,
+                                    color: isDark ? AppColors.darkAccent : AppColors.lightTextPrimary,
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Location & Venue',
+                                            style: AppTypography.manrope(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              color: primaryTextColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Icon(
+                                            Icons.open_in_new_rounded,
+                                            size: 13,
+                                            color: isDark ? AppColors.darkAccent : AppColors.lightOrganizerAccent,
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        event.location,
+                                        style: AppTypography.manrope(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w400,
+                                          color: secondaryTextColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -520,39 +669,58 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   const SizedBox(height: 8),
                   AppCard(
                     padding: const EdgeInsets.all(14),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
-                          child: Text(
-                            (event.organizerName ?? 'O')[0].toUpperCase(),
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                event.organizerName ?? 'Verified Organizer',
-                                style: AppTypography.manrope(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryTextColor,
-                                ),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                              child: Text(
+                                (event.organizerName ?? 'O')[0].toUpperCase(),
+                                style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
                               ),
-                              if (event.organizerEmail != null)
-                                Text(
-                                  event.organizerEmail!,
-                                  style: AppTypography.manrope(
-                                    fontSize: 12,
-                                    color: secondaryTextColor,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    event.organizerName ?? 'Verified Organizer',
+                                    style: AppTypography.manrope(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryTextColor,
+                                    ),
                                   ),
-                                ),
-                            ],
+                                  if (event.organizerEmail != null)
+                                    Text(
+                                      event.organizerEmail!,
+                                      style: AppTypography.manrope(
+                                        fontSize: 12,
+                                        color: secondaryTextColor,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.chat_outlined, size: 16),
+                          label: const Text('Ask Question / Message Organizer'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                            side: BorderSide(
+                              color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
+                          onPressed: _showContactOrganizerDialog,
                         ),
                       ],
                     ),

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +15,7 @@ import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/category_chip.dart';
 import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/map_location_picker_dialog.dart';
 import '../../../models/event_model.dart';
 import '../../../repositories/event_repository.dart';
 import '../../../providers/auth_provider.dart';
@@ -392,11 +392,79 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Location / Venue Address *',
+                          style: AppTypography.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () async {
+                            final chosen = await MapLocationPickerDialog.show(
+                              context,
+                              initialLocation: _locationController.text.trim(),
+                            );
+                            if (chosen != null && chosen.isNotEmpty) {
+                              setState(() {
+                                _locationController.text = chosen;
+                              });
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.map_rounded,
+                                  size: 15,
+                                  color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Pick on Google Map',
+                                  style: AppTypography.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     AppTextField(
-                      label: 'Location / Venue Address *',
-                      hint: 'e.g. Moscone Convention Center, San Francisco',
+                      hint: 'e.g. Convention Centre, Islamabad (or pick on map)',
                       controller: _locationController,
                       prefixIcon: Icons.location_on_outlined,
+                      suffix: IconButton(
+                        icon: Icon(
+                          Icons.pin_drop_rounded,
+                          size: 20,
+                          color: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                        ),
+                        tooltip: 'Open Google Maps Picker',
+                        onPressed: () async {
+                          final chosen = await MapLocationPickerDialog.show(
+                            context,
+                            initialLocation: _locationController.text.trim(),
+                          );
+                          if (chosen != null && chosen.isNotEmpty) {
+                            setState(() {
+                              _locationController.text = chosen;
+                            });
+                          }
+                        },
+                      ),
                       validator: (v) => Validators.required(v, 'Location'),
                     ),
                     const SizedBox(height: 16),

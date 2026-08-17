@@ -1,17 +1,22 @@
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../repositories/user_repository.dart';
 
-/// Service managing FCM Push Notifications and background message handling
+/// Service managing FCM Push Notifications and background message handling with stream broadcasting
 class NotificationService {
   FirebaseMessaging? _fcm;
   final UserRepository _userRepository;
+  final StreamController<RemoteMessage> _messageStreamController =
+      StreamController<RemoteMessage>.broadcast();
 
   NotificationService({
     FirebaseMessaging? fcm,
     UserRepository? userRepository,
   })  : _fcm = fcm,
         _userRepository = userRepository ?? UserRepository();
+
+  Stream<RemoteMessage> get onForegroundMessage => _messageStreamController.stream;
 
   FirebaseMessaging? get _safeFcm {
     if (_fcm != null) return _fcm;
@@ -23,7 +28,7 @@ class NotificationService {
     }
   }
 
-  /// Initialize FCM token registration and notification handlers
+  /// Initialize FCM token registration and stream notification handlers
   Future<void> initialize(String userId) async {
     try {
       final fcm = _safeFcm;
@@ -49,11 +54,14 @@ class NotificationService {
         });
       }
 
-      // Foreground message listener
+      // Foreground message listener streaming into broadcast controller
       try {
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
           if (kDebugMode) {
-            print('Foreground message received: ${message.notification?.title}');
+            print('FCM Foreground message stream received: ${message.notification?.title}');
+          }
+          if (!_messageStreamController.isClosed) {
+            _messageStreamController.add(message);
           }
         });
       } catch (_) {}
@@ -62,5 +70,9 @@ class NotificationService {
         print('FCM initialization notice: $e');
       }
     }
+  }
+
+  void dispose() {
+    _messageStreamController.close();
   }
 }

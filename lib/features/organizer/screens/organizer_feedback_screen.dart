@@ -37,7 +37,7 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen> {
           final effectiveId = _getEffectiveEventId(events);
           if (effectiveId != null) {
             setState(() => _selectedEventId = effectiveId);
-            context.read<FeedbackProvider>().loadEventFeedback(effectiveId);
+            context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId);
           }
         });
       }
@@ -57,7 +57,7 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen> {
   void _onEventSelected(String? eventId) {
     if (eventId == null) return;
     setState(() => _selectedEventId = eventId);
-    context.read<FeedbackProvider>().loadEventFeedback(eventId);
+    context.read<FeedbackProvider>().subscribeToEventFeedback(eventId);
   }
 
   @override

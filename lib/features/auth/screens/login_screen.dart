@@ -10,6 +10,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
+import 'two_factor_verification_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,10 +35,28 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // Check if user has Two-Factor Authentication enabled
+    final is2FaRequired = await authProvider.checkUserTwoFactorRequired(email);
+    if (is2FaRequired) {
+      final initialOtp = authProvider.generateTwoFactorOtp(email);
+      if (!mounted) return;
+
+      final verified = await TwoFactorVerificationDialog.show(
+        context,
+        email: email,
+        generatedOtp: initialOtp,
+        onResendOtp: () async => authProvider.generateTwoFactorOtp(email),
+      );
+
+      if (verified != true) {
+        return; // User cancelled or failed 2FA authorization
+      }
+    }
+
+    final success = await authProvider.login(email, password);
 
     if (success && mounted) {
       final role = authProvider.role;

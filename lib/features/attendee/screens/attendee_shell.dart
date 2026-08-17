@@ -6,7 +6,7 @@ import '../../../core/widgets/modern_navigation_bar.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
 
-class AttendeeShell extends StatelessWidget {
+class AttendeeShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const AttendeeShell({
@@ -14,10 +14,26 @@ class AttendeeShell extends StatelessWidget {
     required this.navigationShell,
   });
 
+  @override
+  State<AttendeeShell> createState() => _AttendeeShellState();
+}
+
+class _AttendeeShellState extends State<AttendeeShell> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = context.read<AuthProvider>().currentUser;
+      if (user != null) {
+        context.read<NotificationProvider>().subscribeToUserNotifications(user.id);
+      }
+    });
+  }
+
   void _onItemTapped(int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
@@ -27,9 +43,9 @@ class AttendeeShell extends StatelessWidget {
     final unreadCount = context.watch<NotificationProvider>().unreadCount;
 
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: ModernFloatingNavigationBar(
-        currentIndex: navigationShell.currentIndex,
+        currentIndex: widget.navigationShell.currentIndex,
         onTap: _onItemTapped,
         activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
         items: [
