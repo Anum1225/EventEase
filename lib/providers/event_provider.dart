@@ -319,6 +319,7 @@ class EventProvider with ChangeNotifier {
     required String eventId,
     required String eventTitle,
     String? organizerId,
+    String? organizerEmail,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -336,9 +337,9 @@ class EventProvider with ChangeNotifier {
       );
 
       if (organizerId != null) {
-        await loadOrganizerEvents(organizerId);
+        await loadOrganizerEvents(organizerId, organizerEmail);
       }
-      await loadDiscoverableEvents();
+      await loadDiscoverableEvents(silent: true);
       _isLoading = false;
       notifyListeners();
       return true;

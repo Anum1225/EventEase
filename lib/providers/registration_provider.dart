@@ -73,7 +73,7 @@ class RegistrationProvider with ChangeNotifier {
 
     try {
       final regs = await _registrationRepository.getUserRegistrations(userId, userEmail);
-      final favs = await _favoriteRepository.getUserFavorites(userId);
+      final favs = await _favoriteRepository.getUserFavorites(userId, userEmail);
       _registrations = regs;
       _favoriteEventIds = favs.map((f) => f.eventId).toSet();
       _isLoading = false;
@@ -165,6 +165,7 @@ class RegistrationProvider with ChangeNotifier {
   Future<void> toggleFavorite({
     required String userId,
     required String eventId,
+    String? userEmail,
   }) async {
     final currentlyFav = _favoriteEventIds.contains(eventId);
     if (currentlyFav) {
@@ -175,7 +176,7 @@ class RegistrationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _favoriteRepository.toggleFavorite(userId: userId, eventId: eventId);
+      await _favoriteRepository.toggleFavorite(userId: userId, eventId: eventId, userEmail: userEmail);
     } catch (e) {
       // Revert on error
       if (currentlyFav) {

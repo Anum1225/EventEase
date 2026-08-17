@@ -38,13 +38,13 @@ class AttendanceProvider with ChangeNotifier {
   }
 
   /// Load participants and attendance records for an organizer event
-  Future<void> loadEventParticipants(String eventId) async {
+  Future<void> loadEventParticipants(String eventId, [List<String>? organizerEventIds]) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final participantsFuture = _registrationRepository.getEventParticipants(eventId);
+      final participantsFuture = _registrationRepository.getEventParticipants(eventId, organizerEventIds);
       final attendanceFuture = _attendanceRepository.getEventAttendance(eventId);
 
       final results = await Future.wait([participantsFuture, attendanceFuture]);

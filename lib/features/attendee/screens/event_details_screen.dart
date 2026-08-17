@@ -332,6 +332,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       regProvider.toggleFavorite(
                         userId: authProvider.currentUser!.id,
                         eventId: event.id,
+                        userEmail: authProvider.currentUser!.email,
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

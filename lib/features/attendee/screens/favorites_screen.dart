@@ -230,6 +230,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                 await regProvider.toggleFavorite(
                                   userId: user.id,
                                   eventId: event.id,
+                                  userEmail: user.email,
                                 );
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(

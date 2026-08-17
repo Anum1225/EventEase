@@ -61,14 +61,22 @@ class ContactRepository {
   }
 
   Future<List<ContactMessageModel>> getAllMessages() async {
+    List<ContactMessageModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _contactCol != null) {
       try {
-        final snap = await _contactCol!.orderBy('submittedAt', descending: true).get();
+        final snap = await _contactCol!.orderBy('submittedAt', descending: true).get().timeout(const Duration(milliseconds: 2000));
         if (snap.docs.isNotEmpty) {
-          return snap.docs.map((d) => ContactMessageModel.fromFirestore(d)).toList();
+          list = snap.docs.map((d) => ContactMessageModel.fromFirestore(d)).toList();
         }
       } catch (_) {}
     }
-    return _localStore.getAllContactMessages();
+    final localList = _localStore.getAllContactMessages();
+    for (final loc in localList) {
+      if (!list.any((d) => d.id == loc.id)) {
+        list.add(loc);
+      }
+    }
+    list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return list;
   }
 }

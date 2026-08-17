@@ -39,7 +39,8 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
           if (!mounted) return;
           final effectiveId = _selectedEventId ?? 'all';
           setState(() => _selectedEventId = effectiveId);
-          context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId);
+          final eventIds = context.read<EventProvider>().organizerEvents.map((e) => e.id).toList();
+          context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId, eventIds);
           context.read<ContactProvider>().loadAllMessages();
         });
       }
@@ -63,7 +64,8 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
   void _onEventSelected(String? eventId) {
     if (eventId == null) return;
     setState(() => _selectedEventId = eventId);
-    context.read<FeedbackProvider>().subscribeToEventFeedback(eventId);
+    final eventIds = context.read<EventProvider>().organizerEvents.map((e) => e.id).toList();
+    context.read<FeedbackProvider>().subscribeToEventFeedback(eventId, eventIds);
   }
 
   void _showReplyDialog(BuildContext context, ContactMessageModel msg) {
@@ -187,7 +189,8 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
           // TAB 1: REVIEWS & RATINGS
           RefreshIndicator(
             onRefresh: () async {
-              await feedbackProvider.loadEventFeedback(effectiveSelectedId);
+              final eventIds = events.map((e) => e.id).toList();
+              await feedbackProvider.loadEventFeedback(effectiveSelectedId, eventIds);
             },
             child: Column(
               children: [
@@ -241,10 +244,14 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded, size: 28, color: Colors.amber),
+                          Icon(
+                            Icons.star_rounded,
+                            size: 28,
+                            color: reviews.isNotEmpty ? Colors.amber : (isDark ? Colors.white24 : Colors.black26),
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            avg > 0 ? avg.toStringAsFixed(1) : '5.0',
+                            reviews.isNotEmpty ? avg.toStringAsFixed(1) : '0.0',
                             style: AppTypography.manrope(fontSize: 22, fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(width: 8),
@@ -257,15 +264,26 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (isDark ? AppColors.darkSuccess : AppColors.lightSuccess).withValues(alpha: 0.15),
+                          color: (reviews.isEmpty
+                                  ? (isDark ? Colors.white12 : Colors.black12)
+                                  : (isDark ? AppColors.darkSuccess : AppColors.lightSuccess))
+                              .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          reviews.isEmpty ? 'Excellent' : avg >= 4.0 ? 'Top Rated' : 'Satisfactory',
+                          reviews.isEmpty
+                              ? 'No Reviews'
+                              : avg >= 4.5
+                                  ? 'Top Rated'
+                                  : avg >= 3.5
+                                      ? 'Good'
+                                      : 'Needs Attention',
                           style: AppTypography.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                            color: reviews.isEmpty
+                                ? secondaryTextColor
+                                : (isDark ? AppColors.darkSuccess : AppColors.lightSuccess),
                           ),
                         ),
                       ),

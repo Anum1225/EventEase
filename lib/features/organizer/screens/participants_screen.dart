@@ -38,7 +38,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
           if (!mounted) return;
           final effectiveId = _selectedEventId ?? 'all';
           setState(() => _selectedEventId = effectiveId);
-          context.read<AttendanceProvider>().loadEventParticipants(effectiveId);
+          final eventIds = context.read<EventProvider>().organizerEvents.map((e) => e.id).toList();
+          context.read<AttendanceProvider>().loadEventParticipants(effectiveId, eventIds);
         });
       }
     });
@@ -63,7 +64,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
     setState(() {
       _selectedEventId = eventId;
     });
-    context.read<AttendanceProvider>().loadEventParticipants(eventId);
+    final eventIds = context.read<EventProvider>().organizerEvents.map((e) => e.id).toList();
+    context.read<AttendanceProvider>().loadEventParticipants(eventId, eventIds);
   }
 
   @override
@@ -113,7 +115,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await attendanceProvider.loadEventParticipants(effectiveSelectedId);
+          final eventIds = events.map((e) => e.id).toList();
+          await attendanceProvider.loadEventParticipants(effectiveSelectedId, eventIds);
         },
         child: Column(
           children: [

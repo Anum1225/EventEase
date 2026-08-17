@@ -39,7 +39,7 @@ class _GalleryUploadScreenState extends State<GalleryUploadScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
-        context.read<EventProvider>().loadOrganizerEvents(user.id).then((_) {
+        context.read<EventProvider>().loadOrganizerEvents(user.id, user.email).then((_) {
           if (!mounted) return;
           final events = context.read<EventProvider>().organizerEvents;
           final effectiveId = _getEffectiveEventId(events);

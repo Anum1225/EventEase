@@ -33,23 +33,42 @@ class GalleryRepository {
           .where('eventId', isEqualTo: eventId)
           .orderBy('uploadedAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs.map((d) => GalleryModel.fromFirestore(d)).toList())
+          .map((snap) {
+            final list = snap.docs.map((d) => GalleryModel.fromFirestore(d)).toList();
+            final localList = _localStore.getEventGallery(eventId);
+            for (final loc in localList) {
+              if (!list.any((g) => g.id == loc.id)) {
+                list.add(loc);
+              }
+            }
+            list.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+            return list;
+          })
           .handleError((_) => _localStore.getEventGallery(eventId));
     }
     return Stream.value(_localStore.getEventGallery(eventId));
   }
 
   Future<List<GalleryModel>> getEventGallery(String eventId) async {
+    List<GalleryModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _galleryCol != null) {
       try {
         final snap = await _galleryCol!
             .where('eventId', isEqualTo: eventId)
             .orderBy('uploadedAt', descending: true)
-            .get();
-        return snap.docs.map((d) => GalleryModel.fromFirestore(d)).toList();
+            .get()
+            .timeout(const Duration(milliseconds: 2500));
+        list = snap.docs.map((d) => GalleryModel.fromFirestore(d)).toList();
       } catch (_) {}
     }
-    return _localStore.getEventGallery(eventId);
+    final localList = _localStore.getEventGallery(eventId);
+    for (final loc in localList) {
+      if (!list.any((g) => g.id == loc.id)) {
+        list.add(loc);
+      }
+    }
+    list.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+    return list;
   }
 
   /// Admin/Organizer: Upload gallery image

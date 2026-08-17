@@ -88,30 +88,93 @@ class FeedbackRepository {
     }
   }
 
-  Stream<List<FeedbackModel>> streamEventFeedback(String eventId) {
+  Stream<List<FeedbackModel>> streamEventFeedback(String eventId, [List<String>? organizerEventIds]) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _feedbackCol != null) {
+      if (eventId.isEmpty || eventId == 'all') {
+        return _feedbackCol!
+            .orderBy('submittedAt', descending: true)
+            .snapshots()
+            .map((snap) {
+              var list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+              if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+                list = list.where((f) => organizerEventIds.contains(f.eventId)).toList();
+              }
+              final localList = _localStore.getEventFeedback('all');
+              for (final loc in localList) {
+                if (!list.any((f) => f.id == loc.id)) {
+                  if (organizerEventIds == null || organizerEventIds.isEmpty || organizerEventIds.contains(loc.eventId)) {
+                    list.add(loc);
+                  }
+                }
+              }
+              return list;
+            })
+            .handleError((_) {
+              final local = _localStore.getEventFeedback('all');
+              if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+                return local.where((f) => organizerEventIds.contains(f.eventId)).toList();
+              }
+              return local;
+            });
+      }
+
       return _feedbackCol!
           .where('eventId', isEqualTo: eventId)
           .orderBy('submittedAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList())
+          .map((snap) {
+            var list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+            final localList = _localStore.getEventFeedback(eventId);
+            for (final loc in localList) {
+              if (!list.any((f) => f.id == loc.id)) {
+                list.add(loc);
+              }
+            }
+            return list;
+          })
           .handleError((_) => _localStore.getEventFeedback(eventId));
     }
-    return Stream.value(_localStore.getEventFeedback(eventId));
+
+    final local = _localStore.getEventFeedback(eventId);
+    if ((eventId.isEmpty || eventId == 'all') && organizerEventIds != null && organizerEventIds.isNotEmpty) {
+      return Stream.value(local.where((f) => organizerEventIds.contains(f.eventId)).toList());
+    }
+    return Stream.value(local);
   }
 
-  Future<List<FeedbackModel>> getEventFeedback(String eventId) async {
+  Future<List<FeedbackModel>> getEventFeedback(String eventId, [List<String>? organizerEventIds]) async {
+    List<FeedbackModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _feedbackCol != null) {
       try {
-        final snap = await _feedbackCol!
-            .where('eventId', isEqualTo: eventId)
-            .get();
-        var list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
-        list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-        return list;
+        if (eventId.isEmpty || eventId == 'all') {
+          final snap = await _feedbackCol!
+              .orderBy('submittedAt', descending: true)
+              .get()
+              .timeout(const Duration(milliseconds: 2500));
+          list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+        } else {
+          final snap = await _feedbackCol!
+              .where('eventId', isEqualTo: eventId)
+              .get()
+              .timeout(const Duration(milliseconds: 2500));
+          list = snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
+        }
       } catch (_) {}
     }
-    return _localStore.getEventFeedback(eventId);
+
+    final localList = _localStore.getEventFeedback(eventId);
+    for (final loc in localList) {
+      if (!list.any((d) => d.id == loc.id)) {
+        list.add(loc);
+      }
+    }
+
+    if ((eventId.isEmpty || eventId == 'all') && organizerEventIds != null && organizerEventIds.isNotEmpty) {
+      list = list.where((f) => organizerEventIds.contains(f.eventId)).toList();
+    }
+
+    list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return list;
   }
 
   /// Aggregation: Calculate average rating for an event

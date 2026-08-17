@@ -29,29 +29,30 @@ class FavoriteRepository {
 
   String _generateFavDocId(String userId, String eventId) => '${userId}_$eventId';
 
-  Future<bool> isEventFavorited({required String userId, required String eventId}) async {
+  Future<bool> isEventFavorited({required String userId, required String eventId, String? userEmail}) async {
+    if (_localStore.isFavorite(userId, eventId, userEmail)) return true;
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _favCol != null) {
       try {
-        final doc = await _favCol!.doc(_generateFavDocId(userId, eventId)).get();
+        final doc = await _favCol!.doc(_generateFavDocId(userId, eventId)).get().timeout(const Duration(milliseconds: 1500));
         if (doc.exists) return true;
       } catch (_) {}
     }
-    return _localStore.isFavorite(userId, eventId);
+    return false;
   }
 
-  Stream<bool> streamIsFavorited({required String userId, required String eventId}) {
+  Stream<bool> streamIsFavorited({required String userId, required String eventId, String? userEmail}) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _favCol != null) {
-      return _favCol!.doc(_generateFavDocId(userId, eventId)).snapshots().map((doc) => doc.exists).handleError((_) => _localStore.isFavorite(userId, eventId));
+      return _favCol!.doc(_generateFavDocId(userId, eventId)).snapshots().map((doc) => doc.exists).handleError((_) => _localStore.isFavorite(userId, eventId, userEmail));
     }
-    return Stream.value(_localStore.isFavorite(userId, eventId));
+    return Stream.value(_localStore.isFavorite(userId, eventId, userEmail));
   }
 
-  Future<void> toggleFavorite({required String userId, required String eventId}) async {
-    _localStore.toggleFavorite(userId, eventId);
+  Future<void> toggleFavorite({required String userId, required String eventId, String? userEmail}) async {
+    _localStore.toggleFavorite(userId, eventId, userEmail);
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _favCol != null) {
       try {
         final docRef = _favCol!.doc(_generateFavDocId(userId, eventId));
-        final doc = await docRef.get();
+        final doc = await docRef.get().timeout(const Duration(milliseconds: 1500));
 
         if (doc.exists) {
           await docRef.delete();
@@ -68,29 +69,45 @@ class FavoriteRepository {
     }
   }
 
-  Stream<List<FavoriteModel>> streamUserFavorites(String userId) {
+  Stream<List<FavoriteModel>> streamUserFavorites(String userId, [String? userEmail]) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _favCol != null) {
       return _favCol!
           .where('userId', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs.map((d) => FavoriteModel.fromFirestore(d)).toList())
-          .handleError((_) => _localStore.getUserFavorites(userId));
+          .map((snap) {
+            final list = snap.docs.map((d) => FavoriteModel.fromFirestore(d)).toList();
+            final localList = _localStore.getUserFavorites(userId, userEmail);
+            for (final loc in localList) {
+              if (!list.any((l) => l.eventId == loc.eventId)) {
+                list.add(loc);
+              }
+            }
+            return list;
+          })
+          .handleError((_) => _localStore.getUserFavorites(userId, userEmail));
     }
-    return Stream.value(_localStore.getUserFavorites(userId));
+    return Stream.value(_localStore.getUserFavorites(userId, userEmail));
   }
 
-  Future<List<FavoriteModel>> getUserFavorites(String userId) async {
+  Future<List<FavoriteModel>> getUserFavorites(String userId, [String? userEmail]) async {
+    final localList = _localStore.getUserFavorites(userId, userEmail);
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _favCol != null) {
       try {
         final snap = await _favCol!
             .where('userId', isEqualTo: userId)
-            .get();
+            .get()
+            .timeout(const Duration(milliseconds: 2000));
         var list = snap.docs.map((d) => FavoriteModel.fromFirestore(d)).toList();
+        for (final loc in localList) {
+          if (!list.any((l) => l.eventId == loc.eventId)) {
+            list.add(loc);
+          }
+        }
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return list;
       } catch (_) {}
     }
-    return _localStore.getUserFavorites(userId);
+    return localList;
   }
 }

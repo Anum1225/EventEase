@@ -254,31 +254,83 @@ class RegistrationRepository {
   }
 
   /// Organizer: Get all registered participants for an event
-  Stream<List<RegistrationModel>> streamEventParticipants(String eventId) {
+  Stream<List<RegistrationModel>> streamEventParticipants(String eventId, [List<String>? organizerEventIds]) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
+      if (eventId.isEmpty || eventId == 'all') {
+        return _regCol!
+            .orderBy('registeredAt', descending: false)
+            .snapshots()
+            .map((snap) {
+              var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+              if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+                list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
+              }
+              final localList = _localStore.getEventParticipants('all', organizerEventIds);
+              for (final loc in localList) {
+                if (!list.any((r) => r.id == loc.id)) {
+                  list.add(loc);
+                }
+              }
+              return list;
+            })
+            .handleError((_) => _localStore.getEventParticipants('all', organizerEventIds));
+      }
+
       return _regCol!
           .where('eventId', isEqualTo: eventId)
           .orderBy('registeredAt', descending: false)
           .snapshots()
-          .map((snap) => snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList())
+          .map((snap) {
+            var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+            final localList = _localStore.getEventParticipants(eventId);
+            for (final loc in localList) {
+              if (!list.any((r) => r.id == loc.id)) {
+                list.add(loc);
+              }
+            }
+            return list;
+          })
           .handleError((_) => _localStore.getEventParticipants(eventId));
     }
-    return Stream.value(_localStore.getEventParticipants(eventId));
+    return Stream.value(_localStore.getEventParticipants(eventId, organizerEventIds));
   }
 
-  Future<List<RegistrationModel>> getEventParticipants(String eventId) async {
+  Future<List<RegistrationModel>> getEventParticipants(String eventId, [List<String>? organizerEventIds]) async {
+    List<RegistrationModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
       try {
-        final snap = await _regCol!
-            .where('eventId', isEqualTo: eventId)
-            .orderBy('registeredAt', descending: false)
-            .get();
-        if (snap.docs.isNotEmpty) {
-          return snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+        if (eventId.isEmpty || eventId == 'all') {
+          final snap = await _regCol!
+              .orderBy('registeredAt', descending: false)
+              .get()
+              .timeout(const Duration(milliseconds: 2500));
+          list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+        } else {
+          final snap = await _regCol!
+              .where('eventId', isEqualTo: eventId)
+              .orderBy('registeredAt', descending: false)
+              .get()
+              .timeout(const Duration(milliseconds: 2500));
+          list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
         }
       } catch (_) {}
     }
-    return _localStore.getEventParticipants(eventId);
+
+    final localList = _localStore.getEventParticipants(eventId, organizerEventIds);
+    for (final loc in localList) {
+      if (!list.any((r) => r.id == loc.id)) {
+        list.add(loc);
+      }
+    }
+
+    if ((eventId.isEmpty || eventId == 'all') && organizerEventIds != null && organizerEventIds.isNotEmpty) {
+      list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
+    } else if (eventId.isNotEmpty && eventId != 'all') {
+      list = list.where((r) => r.eventId == eventId || localList.any((l) => l.id == r.id)).toList();
+    }
+
+    list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
+    return list;
   }
 
   /// Lookup a registration by its QR payload code

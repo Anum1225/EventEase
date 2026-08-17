@@ -816,6 +816,15 @@ class LocalDataStore {
     }
   }
 
+  void completeEvent(String eventId) {
+    final ev = _events[eventId];
+    if (ev != null) {
+      _events[eventId] = ev.copyWith(status: AppConstants.eventStatusCompleted);
+      _eventsStreamController.add(_events.values.toList());
+      _saveToDisk();
+    }
+  }
+
   void deleteEvent(String eventId) {
     _events.remove(eventId);
     _eventsStreamController.add(_events.values.toList());
@@ -1004,13 +1013,23 @@ class LocalDataStore {
     return _attendance.values.where((a) => a.eventId == eventId).toList();
   }
 
-  List<RegistrationModel> getEventParticipants(String eventId) {
+  List<RegistrationModel> getEventParticipants(String eventId, [List<String>? organizerEventIds]) {
     if (eventId.isEmpty || eventId == 'all') {
+      if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+        final list = _registrations.values.where((r) => organizerEventIds.contains(r.eventId)).toList();
+        list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
+        return list;
+      }
       final list = _registrations.values.toList();
       list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
       return list;
     }
-    final list = _registrations.values.where((r) => r.eventId == eventId).toList();
+    final ev = _events[eventId];
+    final list = _registrations.values.where((r) {
+      if (r.eventId == eventId) return true;
+      if (ev != null && (r.eventTitle ?? '').toLowerCase().trim() == ev.title.toLowerCase().trim()) return true;
+      return false;
+    }).toList();
     list.sort((a, b) => (a.userName ?? '').compareTo(b.userName ?? ''));
     return list;
   }
@@ -1019,25 +1038,40 @@ class LocalDataStore {
   // FAVORITES
   // =========================================================================
 
-  List<FavoriteModel> getUserFavorites(String userId) {
-    return _favorites.values.where((f) => f.userId == userId).toList();
+  List<FavoriteModel> getUserFavorites(String userId, [String? userEmail]) {
+    final cleanEmail = userEmail?.trim().toLowerCase();
+    return _favorites.values.where((f) {
+      if (f.userId == userId) return true;
+      if (cleanEmail != null && f.userId == cleanEmail) return true;
+      if (userId.contains('@') && f.userId.toLowerCase() == userId.toLowerCase()) return true;
+      return false;
+    }).toList();
   }
 
-  bool isFavorite(String userId, String eventId) {
-    return _favorites.containsKey('${userId}_$eventId');
+  bool isFavorite(String userId, String eventId, [String? userEmail]) {
+    if (_favorites.containsKey('${userId}_$eventId')) return true;
+    if (userEmail != null && _favorites.containsKey('${userEmail}_$eventId')) return true;
+    return false;
   }
 
-  void toggleFavorite(String userId, String eventId) {
+  void toggleFavorite(String userId, String eventId, [String? userEmail]) {
     final key = '${userId}_$eventId';
-    if (_favorites.containsKey(key)) {
+    final emailKey = userEmail != null ? '${userEmail}_$eventId' : null;
+
+    if (_favorites.containsKey(key) || (emailKey != null && _favorites.containsKey(emailKey))) {
       _favorites.remove(key);
+      if (emailKey != null) _favorites.remove(emailKey);
     } else {
-      _favorites[key] = FavoriteModel(
+      final fav = FavoriteModel(
         id: key,
         userId: userId,
         eventId: eventId,
         createdAt: DateTime.now(),
       );
+      _favorites[key] = fav;
+      if (emailKey != null && emailKey != key) {
+        _favorites[emailKey] = fav;
+      }
     }
     _saveToDisk();
   }

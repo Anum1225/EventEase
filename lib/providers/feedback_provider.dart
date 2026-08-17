@@ -38,7 +38,7 @@ class FeedbackProvider with ChangeNotifier {
       _userSubmittedCache[eventId] ?? false;
 
   /// Real-time stream subscription for live comments and reviews
-  void subscribeToEventFeedback(String eventId) {
+  void subscribeToEventFeedback(String eventId, [List<String>? organizerEventIds]) {
     if (_currentStreamEventId == eventId && _feedbackSubscription != null) {
       return;
     }
@@ -48,7 +48,7 @@ class FeedbackProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _feedbackSubscription = _feedbackRepository.streamEventFeedback(eventId).listen((list) {
+    _feedbackSubscription = _feedbackRepository.streamEventFeedback(eventId, organizerEventIds).listen((list) {
       _eventFeedbackCache[eventId] = list;
       if (list.isNotEmpty) {
         final sum = list.fold<int>(0, (prev, f) => prev + f.rating);
@@ -65,13 +65,13 @@ class FeedbackProvider with ChangeNotifier {
     });
   }
 
-  Future<void> loadEventFeedback(String eventId) async {
+  Future<void> loadEventFeedback(String eventId, [List<String>? organizerEventIds]) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final list = await _feedbackRepository.getEventFeedback(eventId);
+      final list = await _feedbackRepository.getEventFeedback(eventId, organizerEventIds);
       _eventFeedbackCache[eventId] = list;
 
       if (list.isNotEmpty) {
