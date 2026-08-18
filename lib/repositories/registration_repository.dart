@@ -347,46 +347,42 @@ class RegistrationRepository {
     return list;
   }
 
-  /// Organizer: Get all registered participants for an event
-  Stream<List<RegistrationModel>> streamEventParticipants(String eventId, [List<String>? organizerEventIds]) {
-    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
-      if (eventId.isEmpty || eventId == 'all') {
-        return _regCol!
-            .orderBy('registeredAt', descending: false)
-            .snapshots()
-            .map((snap) {
-              var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
-              if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
-                list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
-              }
-              final localList = _localStore.getEventParticipants('all', organizerEventIds);
-              for (final loc in localList) {
-                if (!list.any((r) => r.id == loc.id)) {
-                  list.add(loc);
-                }
-              }
-              return list;
-            })
-            .handleError((_) => _localStore.getEventParticipants('all', organizerEventIds));
-      }
+  List<RegistrationModel> getEventParticipantsLocal(String eventId, [List<String>? organizerEventIds]) {
+    return _localStore.getEventParticipants(eventId, organizerEventIds);
+  }
 
-      return _regCol!
-          .where('eventId', isEqualTo: eventId)
-          .orderBy('registeredAt', descending: false)
-          .snapshots()
-          .map((snap) {
-            var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
-            final localList = _localStore.getEventParticipants(eventId);
-            for (final loc in localList) {
-              if (!list.any((r) => r.id == loc.id)) {
-                list.add(loc);
-              }
+  /// Organizer: Get all registered participants for an event
+  Stream<List<RegistrationModel>> streamEventParticipants(String eventId, [List<String>? organizerEventIds]) async* {
+    // 1. Yield local store immediately
+    yield getEventParticipantsLocal(eventId, organizerEventIds);
+
+    // 2. Safely listen to firestore snapshots
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _regCol != null) {
+      try {
+        Query<Map<String, dynamic>> query = _regCol!;
+        if (eventId.isNotEmpty && eventId != 'all') {
+          query = query.where('eventId', isEqualTo: eventId);
+        }
+        await for (final snap in query.snapshots()) {
+          var list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+          if (eventId.isEmpty || eventId == 'all') {
+            if (organizerEventIds != null && organizerEventIds.isNotEmpty) {
+              list = list.where((r) => organizerEventIds.contains(r.eventId)).toList();
             }
-            return list;
-          })
-          .handleError((_) => _localStore.getEventParticipants(eventId));
+          }
+          final localList = _localStore.getEventParticipants(eventId.isEmpty ? 'all' : eventId, organizerEventIds);
+          for (final loc in localList) {
+            if (!list.any((r) => r.id == loc.id)) {
+              list.add(loc);
+            }
+          }
+          list.sort((a, b) => a.registeredAt.compareTo(b.registeredAt));
+          yield list;
+        }
+      } catch (_) {
+        yield getEventParticipantsLocal(eventId, organizerEventIds);
+      }
     }
-    return Stream.value(_localStore.getEventParticipants(eventId, organizerEventIds));
   }
 
   Future<List<RegistrationModel>> getEventParticipants(String eventId, [List<String>? organizerEventIds]) async {

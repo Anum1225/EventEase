@@ -39,7 +39,10 @@ class AttendanceProvider with ChangeNotifier {
 
   /// Load participants and attendance records for an organizer event
   Future<void> loadEventParticipants(String eventId, [List<String>? organizerEventIds]) async {
-    _isLoading = true;
+    // 1. Instantly seed from local store
+    _eventParticipants = _registrationRepository.getEventParticipantsLocal(eventId, organizerEventIds);
+    _eventAttendance = _attendanceRepository.getEventAttendanceLocal(eventId);
+    _isLoading = false;
     _errorMessage = null;
     notifyListeners();
 

@@ -252,7 +252,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Form(
           key: _formKey,
           child: Column(
@@ -319,7 +319,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
 
               // Form fields card
               AppCard(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -392,8 +392,11 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           'Location / Venue Address *',
@@ -417,7 +420,7 @@ class _CreateEditEventScreenState extends State<CreateEditEventScreen> {
                             }
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

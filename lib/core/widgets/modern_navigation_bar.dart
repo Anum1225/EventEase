@@ -38,7 +38,7 @@ class ModernFloatingNavigationBar extends StatelessWidget {
         (isDark ? AppColors.darkAccent : AppColors.lightAccent);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: isDark
             ? const Color(0xFF141721).withValues(alpha: 0.95)
@@ -62,7 +62,7 @@ class ModernFloatingNavigationBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 58,
+          height: 56,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (index) {
@@ -77,7 +77,7 @@ class ModernFloatingNavigationBar extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 280),
                     curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -90,8 +90,8 @@ class ModernFloatingNavigationBar extends StatelessWidget {
                               duration: const Duration(milliseconds: 280),
                               curve: Curves.easeOutCubic,
                               padding: EdgeInsets.symmetric(
-                                horizontal: isSelected ? 16 : 8,
-                                vertical: isSelected ? 4 : 2,
+                                horizontal: isSelected ? 12 : 6,
+                                vertical: isSelected ? 3 : 2,
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected

@@ -208,17 +208,25 @@ class AttendanceRepository {
     return Stream.value(null);
   }
 
+  List<AttendanceModel> getEventAttendanceLocal(String eventId) {
+    return _localStore.getEventAttendance(eventId);
+  }
+
   /// Stream all checked-in attendees for an event
-  Stream<List<AttendanceModel>> streamEventAttendance(String eventId) {
+  Stream<List<AttendanceModel>> streamEventAttendance(String eventId) async* {
+    yield getEventAttendanceLocal(eventId);
+
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _attendanceCol != null) {
-      return _attendanceCol!
-          .where('eventId', isEqualTo: eventId)
-          .orderBy('checkedInAt', descending: true)
-          .snapshots()
-          .map((snap) => snap.docs.map((d) => AttendanceModel.fromFirestore(d)).toList())
-          .handleError((_) => _localStore.getEventAttendance(eventId));
+      try {
+        await for (final snap in _attendanceCol!.where('eventId', isEqualTo: eventId).snapshots()) {
+          final list = snap.docs.map((d) => AttendanceModel.fromFirestore(d)).toList();
+          list.sort((a, b) => b.checkedInAt.compareTo(a.checkedInAt));
+          yield list;
+        }
+      } catch (_) {
+        yield getEventAttendanceLocal(eventId);
+      }
     }
-    return Stream.value(_localStore.getEventAttendance(eventId));
   }
 
   Future<List<AttendanceModel>> getEventAttendance(String eventId) async {

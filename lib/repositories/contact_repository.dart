@@ -60,6 +60,32 @@ class ContactRepository {
     }
   }
 
+  List<ContactMessageModel> getAllMessagesLocal() {
+    return _localStore.getAllContactMessages();
+  }
+
+  Stream<List<ContactMessageModel>> streamAllMessages() async* {
+    yield getAllMessagesLocal();
+
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _contactCol != null) {
+      try {
+        await for (final snap in _contactCol!.snapshots()) {
+          final list = snap.docs.map((d) => ContactMessageModel.fromFirestore(d)).toList();
+          final localList = _localStore.getAllContactMessages();
+          for (final loc in localList) {
+            if (!list.any((d) => d.id == loc.id)) {
+              list.add(loc);
+            }
+          }
+          list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+          yield list;
+        }
+      } catch (_) {
+        yield getAllMessagesLocal();
+      }
+    }
+  }
+
   Future<List<ContactMessageModel>> getAllMessages() async {
     List<ContactMessageModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _contactCol != null) {

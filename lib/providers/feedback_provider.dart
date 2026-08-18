@@ -45,7 +45,17 @@ class FeedbackProvider with ChangeNotifier {
     _currentStreamEventId = eventId;
     _feedbackSubscription?.cancel();
 
-    _isLoading = true;
+    // 1. Instantly seed cache from local store so UI is immediate with zero stuck loading
+    final initialList = _feedbackRepository.getEventFeedbackLocal(eventId, organizerEventIds);
+    _eventFeedbackCache[eventId] = initialList;
+    if (initialList.isNotEmpty) {
+      final sum = initialList.fold<int>(0, (prev, f) => prev + f.rating);
+      _eventAverageRatings[eventId] = sum / initialList.length;
+    } else {
+      _eventAverageRatings[eventId] = 0.0;
+    }
+    _isLoading = false;
+    _errorMessage = null;
     notifyListeners();
 
     _feedbackSubscription = _feedbackRepository.streamEventFeedback(eventId, organizerEventIds).listen((list) {

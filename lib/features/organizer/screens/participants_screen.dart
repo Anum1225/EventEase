@@ -311,6 +311,8 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                                           const SizedBox(height: 2),
                                           Text(
                                             p.userEmail ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: AppTypography.manrope(fontSize: 12, color: secondaryTextColor),
                                           ),
                                           const SizedBox(height: 2),
@@ -341,16 +343,20 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                                           const SizedBox(height: 4),
                                           Row(
                                             children: [
-                                              Text(
-                                                'Pass: ${p.qrCode}',
-                                                style: AppTypography.manrope(
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: secondaryTextColor,
+                                              Expanded(
+                                                child: Text(
+                                                  'Pass: ${p.qrCode}',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: AppTypography.manrope(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: secondaryTextColor,
+                                                  ),
                                                 ),
                                               ),
-                                              const Spacer(),
-                                              if (p.isRegistered && !isCheckedIn)
+                                              if (p.isRegistered && !isCheckedIn) ...[
+                                                const SizedBox(width: 8),
                                                 InkWell(
                                                   onTap: () async {
                                                     final user = context.read<AuthProvider>().currentUser;
@@ -390,6 +396,7 @@ class _ParticipantsScreenState extends State<ParticipantsScreen> {
                                                     ),
                                                   ),
                                                 ),
+                                              ],
                                             ],
                                           ),
                                         ],

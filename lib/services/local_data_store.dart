@@ -240,8 +240,34 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Contact Messages (empty by default, populated dynamically by users)
-    _contacts.remove('msg_seed_001');
+    // Default Seed Contact Messages
+    if (_contacts.isEmpty) {
+      final seedContacts = [
+        ContactMessageModel(
+          id: 'msg_seed_001',
+          userId: 'usr_att_noobgamer',
+          name: 'Abdul Jabbar',
+          email: 'noobgamerabduljabber@gmail.com',
+          subject: 'Question regarding VIP Seating & Registration Pass',
+          message: 'Hello! I have registered for the upcoming event and wanted to confirm if VIP badge collection is at Gate 2 or the Main Entrance.',
+          submittedAt: DateTime.now().subtract(const Duration(hours: 5)),
+          status: 'new',
+        ),
+        ContactMessageModel(
+          id: 'msg_seed_002',
+          userId: 'usr_att_noobgamer',
+          name: 'Anum Naz',
+          email: 'noobgamerabduljabber@gmail.com',
+          subject: 'Certificate of Attendance Request',
+          message: 'Hi Organizer, will digital certificates be emailed after the hackathon wraps up? Thanks!',
+          submittedAt: DateTime.now().subtract(const Duration(hours: 18)),
+          status: 'new',
+        ),
+      ];
+      for (final c in seedContacts) {
+        _contacts[c.id] = c;
+      }
+    }
   }
 
   static bool enableDiskPersistence = true;

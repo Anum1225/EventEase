@@ -37,14 +37,18 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
     _tabController = TabController(length: 2, vsync: this);
     _selectedEventId = widget.initialEventId ?? 'all';
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ContactProvider>().loadAllMessages();
+      final effectiveId = _selectedEventId ?? 'all';
+      context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId);
+
       final user = context.read<AuthProvider>().currentUser;
       if (user != null) {
         context.read<EventProvider>().loadOrganizerEvents(user.id, user.email).then((_) {
           if (!mounted) return;
-          final effectiveId = _selectedEventId ?? 'all';
-          setState(() => _selectedEventId = effectiveId);
+          final updatedEffectiveId = _selectedEventId ?? 'all';
+          setState(() => _selectedEventId = updatedEffectiveId);
           final eventIds = context.read<EventProvider>().organizerEvents.map((e) => e.id).toList();
-          context.read<FeedbackProvider>().subscribeToEventFeedback(effectiveId, eventIds);
+          context.read<FeedbackProvider>().subscribeToEventFeedback(updatedEffectiveId, eventIds);
           context.read<ContactProvider>().loadAllMessages();
         });
       }
@@ -410,31 +414,38 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Row(
-                                              children: [
-                                                CircleAvatar(
-                                                  radius: 14,
-                                                  backgroundColor: isDark ? AppColors.darkOrganizerAccent : const Color(0xFFE8E5DD),
-                                                  child: Text(
-                                                    initial,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w700,
-                                                      color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 14,
+                                                    backgroundColor: isDark ? AppColors.darkOrganizerAccent : const Color(0xFFE8E5DD),
+                                                    child: Text(
+                                                      initial,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  name,
-                                                  style: AppTypography.manrope(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: primaryTextColor,
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      name,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: AppTypography.manrope(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: primaryTextColor,
+                                                      ),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Text(
                                               DateFormatter.formatRelative(r.submittedAt),
                                               style: AppTypography.manrope(fontSize: 11, color: secondaryTextColor),
