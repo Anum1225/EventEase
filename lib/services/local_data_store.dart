@@ -1235,8 +1235,16 @@ class LocalDataStore {
     _saveToDisk();
   }
 
-  List<NotificationModel> getUserNotifications(String userId) {
-    final list = _notifications.values.where((n) => n.userId == userId).toList();
+  List<NotificationModel> getUserNotifications(String userId, [String? userEmail]) {
+    final cleanEmail = userEmail?.trim().toLowerCase();
+    final cleanId = userId.trim().toLowerCase();
+    final list = _notifications.values.where((n) {
+      if (n.userId == userId) return true;
+      if (n.userId.toLowerCase() == cleanId) return true;
+      if (cleanEmail != null && cleanEmail.isNotEmpty && n.userId.toLowerCase() == cleanEmail) return true;
+      if (userId.contains('@') && n.userId.toLowerCase() == userId.toLowerCase()) return true;
+      return false;
+    }).toList();
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;
   }

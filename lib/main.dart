@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app.dart';
 import 'firebase_options.dart';
+import 'services/app_preload_service.dart';
 import 'services/local_data_store.dart';
 
 void main() async {
@@ -31,6 +32,9 @@ void main() async {
       debugPrint('Firebase initialization note: $e');
     }
   }
+
+  // Kick off sequential 2-at-a-time non-blocking warm-up
+  AppPreloadService().startBackgroundWarmup();
 
   runApp(const EventEaseApp());
 }

@@ -165,10 +165,26 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
                 replyMessage: replyText,
               );
 
-              // 2. Dispatch real in-app notification if userId is known
-              if (msg.userId != null && msg.userId!.isNotEmpty && msg.userId != 'guest') {
+              // 2. Dispatch real in-app notification to attendee's notification tab
+              String targetUserId = (msg.userId != null && msg.userId!.isNotEmpty && msg.userId != 'guest')
+                  ? msg.userId!
+                  : msg.email;
+
+              final matchedUser = LocalDataStore().getUserByEmail(msg.email);
+              if (matchedUser != null) {
+                targetUserId = matchedUser.id;
+              }
+
+              await NotificationRepository().sendNotification(
+                userId: targetUserId,
+                title: 'Organizer Response: ${msg.subject}',
+                message: '$organizerName replied: "$replyText"',
+                type: 'inquiry_response',
+              );
+
+              if (targetUserId != msg.email) {
                 await NotificationRepository().sendNotification(
-                  userId: msg.userId!,
+                  userId: msg.email,
                   title: 'Organizer Response: ${msg.subject}',
                   message: '$organizerName replied: "$replyText"',
                   type: 'inquiry_response',
@@ -178,7 +194,7 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Email response sent to ${msg.email}!'),
+                    content: Text('Response sent to ${msg.name} (${msg.email}) and posted to their in-app notifications!'),
                     backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
                   ),
                 );

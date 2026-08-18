@@ -30,30 +30,47 @@ class NotificationRepository {
   CollectionReference<Map<String, dynamic>>? get _regCol =>
       _safeFirestore?.collection(AppConstants.colRegistrations);
 
-  Stream<List<NotificationModel>> streamUserNotifications(String userId) {
+  Stream<List<NotificationModel>> streamUserNotifications(String userId, [String? userEmail]) {
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _notifCol != null) {
       return _notifCol!
           .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs.map((d) => NotificationModel.fromFirestore(d)).toList())
-          .handleError((_) => _localStore.getUserNotifications(userId));
+          .map((snap) {
+            final list = snap.docs.map((d) => NotificationModel.fromFirestore(d)).toList();
+            final local = _localStore.getUserNotifications(userId, userEmail);
+            for (final l in local) {
+              if (!list.any((rem) => rem.id == l.id)) {
+                list.add(l);
+              }
+            }
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          })
+          .handleError((_) => _localStore.getUserNotifications(userId, userEmail));
     }
-    return Stream.value(_localStore.getUserNotifications(userId));
+    return Stream.value(_localStore.getUserNotifications(userId, userEmail));
   }
 
-  Future<List<NotificationModel>> getUserNotifications(String userId) async {
+  Future<List<NotificationModel>> getUserNotifications(String userId, [String? userEmail]) async {
+    final List<NotificationModel> list = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _notifCol != null) {
       try {
         final snap = await _notifCol!
             .where('userId', isEqualTo: userId)
-            .get();
-        var list = snap.docs.map((d) => NotificationModel.fromFirestore(d)).toList();
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return list;
+            .get()
+            .timeout(const Duration(seconds: 3));
+        list.addAll(snap.docs.map((d) => NotificationModel.fromFirestore(d)));
       } catch (_) {}
     }
-    return _localStore.getUserNotifications(userId);
+
+    final local = _localStore.getUserNotifications(userId, userEmail);
+    for (final l in local) {
+      if (!list.any((rem) => rem.id == l.id)) {
+        list.add(l);
+      }
+    }
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   }
 
   Future<void> sendNotification({

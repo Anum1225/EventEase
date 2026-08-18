@@ -23,7 +23,7 @@ class NotificationProvider with ChangeNotifier {
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   /// Subscribe to real-time stream of notifications for user
-  void subscribeToUserNotifications(String userId) {
+  void subscribeToUserNotifications(String userId, [String? userEmail]) {
     if (_currentSubscribedUserId == userId && _notificationSubscription != null) {
       return;
     }
@@ -34,7 +34,7 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
 
     _notificationSubscription = _notificationRepository
-        .streamUserNotifications(userId)
+        .streamUserNotifications(userId, userEmail)
         .listen((notifs) {
       _notifications = notifs;
       _isLoading = false;
@@ -55,13 +55,13 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadUserNotifications(String userId) async {
+  Future<void> loadUserNotifications(String userId, [String? userEmail]) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _notifications = await _notificationRepository.getUserNotifications(userId);
+      _notifications = await _notificationRepository.getUserNotifications(userId, userEmail);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
