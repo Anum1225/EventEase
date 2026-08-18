@@ -72,12 +72,17 @@ class AttendanceRepository {
         }
 
         if (registration != null) {
-
-          if (registration.eventId != currentEventId) {
-            return const CheckInResult(
-              success: false,
-              message: 'This pass is for a different event.',
-            );
+          final regItem = registration;
+          if (currentEventId.isNotEmpty && currentEventId != 'all' && regItem.eventId != currentEventId) {
+            // Check if organizer owns this event
+            final organizerEvents = _localStore.getEventsByOrganizer(organizerId);
+            final ownsEvent = organizerEvents.any((e) => e.id == regItem.eventId);
+            if (!ownsEvent) {
+              return const CheckInResult(
+                success: false,
+                message: 'This pass belongs to a different organizer/event.',
+              );
+            }
           }
 
           if (registration.status == AppConstants.registrationStatusCancelled) {
@@ -138,11 +143,15 @@ class AttendanceRepository {
         );
       }
 
-      if (reg.eventId != currentEventId) {
-        return const CheckInResult(
-          success: false,
-          message: 'This pass is for a different event.',
-        );
+      if (currentEventId.isNotEmpty && currentEventId != 'all' && reg.eventId != currentEventId) {
+        final organizerEvents = _localStore.getEventsByOrganizer(organizerId);
+        final ownsEvent = organizerEvents.any((e) => e.id == reg.eventId);
+        if (!ownsEvent) {
+          return const CheckInResult(
+            success: false,
+            message: 'This pass belongs to a different organizer/event.',
+          );
+        }
       }
 
       final att = _localStore.checkInAttendee(

@@ -12,6 +12,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/event_provider.dart';
 import '../../../providers/attendance_provider.dart';
 import '../../../repositories/attendance_repository.dart';
+import '../../../services/local_data_store.dart';
 
 class AttendanceScannerScreen extends StatefulWidget {
   final String? initialEventId;
@@ -35,10 +36,12 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     super.initState();
     _selectedEventId = widget.initialEventId;
     _scannerController = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
+      detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
       torchEnabled: false,
       returnImage: false,
+      formats: const [BarcodeFormat.qrCode],
+      autoStart: true,
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,7 +65,14 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     if (organizerEvents.isNotEmpty) {
       return organizerEvents.first.id;
     }
-    return null;
+    final user = context.read<AuthProvider>().currentUser;
+    if (user != null) {
+      final local = LocalDataStore().getEventsByOrganizer(user.id);
+      if (local.isNotEmpty) {
+        return local.first.id;
+      }
+    }
+    return 'all';
   }
 
   Future<void> _processCode(String rawValue, String targetEventId) async {
@@ -92,18 +102,11 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     if (barcodes.isEmpty) return;
 
     final rawValue = barcodes.first.rawValue;
-    if (rawValue == null || rawValue.isEmpty) return;
+    if (rawValue == null || rawValue.trim().isEmpty) return;
 
     final eventProvider = context.read<EventProvider>();
     final organizerEvents = eventProvider.organizerEvents.where((e) => !e.isCancelled).toList();
-    final targetId = _getEffectiveEventId(organizerEvents);
-
-    if (targetId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an active event first.')),
-      );
-      return;
-    }
+    final targetId = _getEffectiveEventId(organizerEvents) ?? 'all';
 
     setState(() => _isProcessing = true);
     _processCode(rawValue, targetId);
@@ -361,7 +364,12 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      if (mounted) {
+        context.read<AttendanceProvider>().clearLastScanResult();
+        setState(() => _isProcessing = false);
+      }
+    });
   }
 
   @override
