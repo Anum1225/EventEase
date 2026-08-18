@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/app_card.dart';
@@ -78,132 +79,158 @@ class _OrganizerFeedbackScreenState extends State<OrganizerFeedbackScreen>
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
         backgroundColor: isDark ? const Color(0xFF1E2232) : Colors.white,
-        title: Row(
-          children: [
-            Icon(Icons.reply_rounded, color: indigoAccent),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Reply to ${msg.name}',
-                style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Attendee Message:',
-              style: AppTypography.manrope(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.black26 : const Color(0xFFF5F2EB),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                msg.message,
-                style: AppTypography.manrope(fontSize: 12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: replyController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Type your reply message...',
-                hintStyle: AppTypography.manrope(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(
-              foregroundColor: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
-            ),
-            child: Text(
-              'Cancel',
-              style: AppTypography.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final replyText = replyController.text.trim();
-              if (replyText.isEmpty) return;
-              Navigator.pop(ctx);
-
-              final currentOrganizer = context.read<AuthProvider>().currentUser;
-              final organizerName = currentOrganizer?.name ?? 'Event Organizer';
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Dispatching response to ${msg.email}...'),
-                  duration: const Duration(seconds: 2),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.reply_rounded, color: indigoAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Reply to ${msg.name}',
+                        style: AppTypography.manrope(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Close',
+                    ),
+                  ],
                 ),
-              );
-
-              // 1. Dispatch real email to the user's email address
-              await TwoFactorEmailService.sendOrganizerReplyEmail(
-                toEmail: msg.email,
-                attendeeName: msg.name,
-                organizerName: organizerName,
-                subject: msg.subject,
-                originalMessage: msg.message,
-                replyMessage: replyText,
-              );
-
-              // 2. Dispatch real in-app notification to attendee's notification tab
-              String targetUserId = (msg.userId != null && msg.userId!.isNotEmpty && msg.userId != 'guest')
-                  ? msg.userId!
-                  : msg.email;
-
-              final matchedUser = LocalDataStore().getUserByEmail(msg.email);
-              if (matchedUser != null) {
-                targetUserId = matchedUser.id;
-              }
-
-              await NotificationRepository().sendNotification(
-                userId: targetUserId,
-                title: 'Organizer Response: ${msg.subject}',
-                message: '$organizerName replied: "$replyText"',
-                type: 'inquiry_response',
-              );
-
-              if (targetUserId != msg.email) {
-                await NotificationRepository().sendNotification(
-                  userId: msg.email,
-                  title: 'Organizer Response: ${msg.subject}',
-                  message: '$organizerName replied: "$replyText"',
-                  type: 'inquiry_response',
-                );
-              }
-
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Response sent to ${msg.name} (${msg.email}) and posted to their in-app notifications!'),
-                    backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                const SizedBox(height: 12),
+                Text(
+                  'Attendee Message:',
+                  style: AppTypography.manrope(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black26 : const Color(0xFFF5F2EB),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                );
-              }
-            },
-            child: const Text('Send Response'),
+                  child: Text(
+                    msg.message,
+                    style: AppTypography.manrope(fontSize: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: replyController,
+                  maxLines: 3,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Type your reply message...',
+                    hintStyle: AppTypography.manrope(fontSize: 13),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: AppTypography.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextSecondary : const Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? AppColors.darkOrganizerAccent : AppColors.lightOrganizerAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () async {
+                        final replyText = replyController.text.trim();
+                        if (replyText.isEmpty) return;
+                        Navigator.pop(ctx);
+
+                        final currentOrganizer = context.read<AuthProvider>().currentUser;
+                        final organizerName = currentOrganizer?.name ?? 'Event Organizer';
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Dispatching response to ${msg.email}...'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+
+                        // 1. Dispatch real email to the user's email address
+                        await TwoFactorEmailService.sendOrganizerReplyEmail(
+                          toEmail: msg.email,
+                          attendeeName: msg.name,
+                          organizerName: organizerName,
+                          subject: msg.subject,
+                          originalMessage: msg.message,
+                          replyMessage: replyText,
+                        );
+
+                        // 2. Dispatch real in-app notification to attendee's notification tab
+                        String targetUserId = (msg.userId != null && msg.userId!.isNotEmpty && msg.userId != 'guest')
+                            ? msg.userId!
+                            : msg.email;
+
+                        final matchedUser = LocalDataStore().getUserByEmail(msg.email);
+                        if (matchedUser != null) {
+                          targetUserId = matchedUser.id;
+                        }
+
+                        await NotificationRepository().sendNotification(
+                          userId: targetUserId,
+                          title: 'Organizer Response: ${msg.subject}',
+                          message: '$organizerName replied: "$replyText"',
+                          type: 'inquiry_response',
+                        );
+
+                        if (targetUserId != msg.email) {
+                          await NotificationRepository().sendNotification(
+                            userId: msg.email,
+                            title: 'Organizer Response: ${msg.subject}',
+                            message: '$organizerName replied: "$replyText"',
+                            type: 'inquiry_response',
+                          );
+                        }
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Response sent to ${msg.name} (${msg.email}) and posted to their in-app notifications!'),
+                              backgroundColor: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Send Response', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

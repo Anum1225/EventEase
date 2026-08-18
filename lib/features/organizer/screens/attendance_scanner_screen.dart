@@ -182,6 +182,7 @@ class _AttendanceScannerScreenState extends State<AttendanceScannerScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
         title: Row(
           children: [
