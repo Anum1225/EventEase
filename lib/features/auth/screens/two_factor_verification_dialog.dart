@@ -413,7 +413,23 @@ class _TwoFactorVerificationDialogState extends State<TwoFactorVerificationDialo
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            if (_currentOtp != null && _currentOtp!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _autoFillOtp(_currentOtp!),
+                  icon: const Icon(Icons.flash_on_rounded, size: 16),
+                  label: Text(
+                    'Insert Code: $_currentOtp',
+                    style: AppTypography.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
 
             // Action Buttons
             AppButton(

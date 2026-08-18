@@ -22,6 +22,18 @@ class ErrorView extends StatelessWidget {
     final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
+    final isNetworkError = message.toLowerCase().contains('network') ||
+        message.toLowerCase().contains('internet') ||
+        message.toLowerCase().contains('socket') ||
+        message.toLowerCase().contains('unavailable') ||
+        message.toLowerCase().contains('offline') ||
+        message.toLowerCase().contains('timeout');
+
+    final displayTitle = isNetworkError ? 'No Internet Connection' : 'Something went wrong';
+    final displayMessage = isNetworkError
+        ? 'Please check your Wi-Fi or mobile data connection and try again.'
+        : message;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -35,14 +47,14 @@ class ErrorView extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.error_outline_rounded,
+                isNetworkError ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
                 size: 48,
                 color: isDark ? AppColors.darkError : AppColors.lightError,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Something went wrong',
+              displayTitle,
               style: AppTypography.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -51,7 +63,7 @@ class ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              message,
+              displayMessage,
               textAlign: TextAlign.center,
               style: AppTypography.manrope(
                 fontSize: 14,
