@@ -55,56 +55,57 @@ class EventRepository {
     String? location,
     bool onlyAvailable = false,
   }) async {
+    List<EventModel> events = [];
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _eventsCol != null) {
       try {
-        Query<Map<String, dynamic>> query = _eventsCol!
-            .where('status', isEqualTo: AppConstants.eventStatusApproved);
-
-        final snap = await query.get().timeout(const Duration(milliseconds: 2500));
+        final snap = await _eventsCol!.get().timeout(const Duration(seconds: 4));
         if (snap.docs.isNotEmpty) {
-          var events = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
-
-          if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
-            events = events.where((e) => e.category.toLowerCase() == category.toLowerCase()).toList();
-          }
-
-          if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-            final qLower = searchQuery.trim().toLowerCase();
-            events = events.where((e) =>
-                e.title.toLowerCase().contains(qLower) ||
-                e.description.toLowerCase().contains(qLower) ||
-                e.location.toLowerCase().contains(qLower)).toList();
-          }
-
-          if (location != null && location.trim().isNotEmpty) {
-            final lLower = location.trim().toLowerCase();
-            events = events.where((e) => e.location.toLowerCase().contains(lLower)).toList();
-          }
-
-          if (date != null) {
-            events = events.where((e) =>
-                e.date.year == date.year &&
-                e.date.month == date.month &&
-                e.date.day == date.day).toList();
-          }
-
-          if (onlyAvailable) {
-            events = events.where((e) => !e.isFull).toList();
-          }
-
-          events.sort((a, b) => a.date.compareTo(b.date));
-          return events;
+          events = snap.docs.map((doc) => EventModel.fromFirestore(doc)).toList();
         }
       } catch (_) {}
     }
 
-    return _localStore.getApprovedEvents(
-      category: category,
-      query: searchQuery,
-      date: date,
-      location: location,
-      onlyAvailable: onlyAvailable,
-    );
+    // Always merge with local data store
+    final localList = _localStore.getAllAdminEvents();
+    for (final loc in localList) {
+      if (!events.any((e) => e.id == loc.id)) {
+        events.add(loc);
+      }
+    }
+
+    // Filter to approved / live discoverable events
+    events = events.where((e) => e.isApproved || e.isCompleted || e.status == AppConstants.eventStatusApproved || e.status == AppConstants.eventStatusCompleted).toList();
+
+    if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
+      events = events.where((e) => e.category.toLowerCase() == category.toLowerCase()).toList();
+    }
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final qLower = searchQuery.trim().toLowerCase();
+      events = events.where((e) =>
+          e.title.toLowerCase().contains(qLower) ||
+          e.description.toLowerCase().contains(qLower) ||
+          e.location.toLowerCase().contains(qLower)).toList();
+    }
+
+    if (location != null && location.trim().isNotEmpty) {
+      final lLower = location.trim().toLowerCase();
+      events = events.where((e) => e.location.toLowerCase().contains(lLower)).toList();
+    }
+
+    if (date != null) {
+      events = events.where((e) =>
+          e.date.year == date.year &&
+          e.date.month == date.month &&
+          e.date.day == date.day).toList();
+    }
+
+    if (onlyAvailable) {
+      events = events.where((e) => !e.isFull).toList();
+    }
+
+    events.sort((a, b) => a.date.compareTo(b.date));
+    return events;
   }
 
   Future<EventModel?> getEventById(String eventId) async {
