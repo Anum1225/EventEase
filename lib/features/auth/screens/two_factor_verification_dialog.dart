@@ -88,6 +88,16 @@ class _TwoFactorVerificationDialogState extends State<TwoFactorVerificationDialo
     });
   }
 
+  void _autoFillOtp(String code) {
+    final clean = code.trim();
+    if (clean.length == 6) {
+      for (int i = 0; i < 6; i++) {
+        _controllers[i].text = clean[i];
+      }
+      _verify();
+    }
+  }
+
   String _getEnteredCode() {
     return _controllers.map((c) => c.text).join();
   }

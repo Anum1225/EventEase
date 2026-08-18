@@ -112,25 +112,31 @@ class TwoFactorEmailService {
     required String otpCode,
     required String actionType,
   }) async {
-    // Outbound Email Dispatch via FormSubmit Gateway
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'EventEase-Mobile/2.0 (Android; Linux; Mobile)',
+      'Origin': 'https://eventease-app.web.app',
+    };
+
+    final payload = jsonEncode({
+      '_subject': '🛡️ EventEase Security Verification Code: $otpCode',
+      '_template': 'box',
+      '_captcha': 'false',
+      'Security Verification Code': otpCode,
+      'Action Requested': actionType,
+      'Account': toEmail,
+      'User': userName.isNotEmpty ? userName : 'Valued Member',
+      'Validity': '10 Minutes',
+      'Security Notice': 'Never share this one-time code with anyone. EventEase staff will never ask for your verification code.',
+    });
+
+    // Primary Gateway: FormSubmit API
     try {
       final formSubmitResponse = await _httpClient.post(
         Uri.parse('https://formsubmit.co/ajax/$toEmail'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          '_subject': 'EventEase Security Verification Code: $otpCode',
-          '_template': 'box',
-          '_captcha': 'false',
-          'Security Verification Code': otpCode,
-          'Action Requested': actionType,
-          'Account': toEmail,
-          'User': userName.isNotEmpty ? userName : 'Valued Member',
-          'Validity': '10 Minutes',
-          'Security Notice': 'Never share this one-time code with anyone. EventEase staff will never ask for your verification code.',
-        }),
+        headers: headers,
+        body: payload,
       ).timeout(const Duration(seconds: 4), onTimeout: () {
         return http.Response('timeout', 408);
       });
@@ -140,7 +146,7 @@ class TwoFactorEmailService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('2FA email dispatch note: $e');
+        print('2FA email primary dispatch notice: $e');
       }
     }
   }
@@ -161,6 +167,8 @@ class TwoFactorEmailService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': 'EventEase-Mobile/2.0 (Android; Linux; Mobile)',
+          'Origin': 'https://eventease-app.web.app',
         },
         body: jsonEncode({
           '_subject': 'EventEase Organizer Response: $subject',
