@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeProvider with ChangeNotifier {
   static const String _prefKey = 'eventease_theme_mode';
   ThemeMode _themeMode = ThemeMode.system;
+  SharedPreferences? _prefs;
 
   ThemeProvider() {
     _loadFromPrefs();
@@ -21,8 +22,8 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> _loadFromPrefs() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final modeIndex = prefs.getInt(_prefKey);
+      _prefs = await SharedPreferences.getInstance();
+      final modeIndex = _prefs?.getInt(_prefKey);
       if (modeIndex != null && modeIndex >= 0 && modeIndex < ThemeMode.values.length) {
         _themeMode = ThemeMode.values[modeIndex];
         notifyListeners();
@@ -36,8 +37,8 @@ class ThemeProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_prefKey, mode.index);
+      _prefs ??= await SharedPreferences.getInstance();
+      await _prefs?.setInt(_prefKey, mode.index);
     } catch (_) {}
   }
 

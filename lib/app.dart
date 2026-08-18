@@ -408,8 +408,7 @@ class EventEaseApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
-            themeAnimationDuration: const Duration(milliseconds: 120),
-            themeAnimationCurve: Curves.easeOut,
+            themeAnimationDuration: Duration.zero,
             routerConfig: _router,
           );
         },
