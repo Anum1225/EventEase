@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../firebase_options.dart';
 import '../repositories/event_repository.dart';
 import '../repositories/gallery_repository.dart';
 import '../repositories/contact_repository.dart';
 import '../repositories/feedback_repository.dart';
 import '../repositories/user_repository.dart';
-import '../repositories/attendance_repository.dart';
-import 'local_data_store.dart';
 
 /// Background Non-blocking Data Preloading & Memory Warming Service
 /// Pre-loads all application modules in batches of 2 with scheduled intervals
@@ -29,26 +26,32 @@ class AppPreloadService {
     Timer(const Duration(milliseconds: 600), () async {
       try {
         // Batch 1: Events & Public Catalog
-        await Future.wait([
-          EventRepository().getDiscoverableEvents().catchError((_) => <dynamic>[]),
-          EventRepository().getPendingApprovalEvents().catchError((_) => <dynamic>[]),
-        ]);
+        try {
+          await EventRepository().getDiscoverableEvents();
+        } catch (_) {}
+        try {
+          await EventRepository().getPendingApprovalEvents();
+        } catch (_) {}
 
         await Future.delayed(const Duration(milliseconds: 150));
 
-        // Batch 2: Gallery & Inquiries
-        await Future.wait([
-          GalleryRepository().getAllPhotos().catchError((_) => <dynamic>[]),
-          ContactRepository().getAllMessages().catchError((_) => <dynamic>[]),
-        ]);
+        // Batch 2: Gallery Moderation & Inquiries
+        try {
+          await GalleryRepository().getAllGalleryMedia();
+        } catch (_) {}
+        try {
+          await ContactRepository().getAllMessages();
+        } catch (_) {}
 
         await Future.delayed(const Duration(milliseconds: 150));
 
         // Batch 3: Feedback & Users / Attendance
-        await Future.wait([
-          FeedbackRepository().getAllFeedback().catchError((_) => <dynamic>[]),
-          UserRepository().getAllUsers().catchError((_) => <dynamic>[]),
-        ]);
+        try {
+          await FeedbackRepository().getAllFeedback();
+        } catch (_) {}
+        try {
+          await UserRepository().getAllUsers();
+        } catch (_) {}
 
         if (kDebugMode) {
           debugPrint('⚡ [AppPreloadService] Background batch warm-up complete. All screens primed for 0ms render.');

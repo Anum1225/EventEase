@@ -731,6 +731,15 @@ class LocalDataStore {
 
   UserModel? getUserById(String id) => _users[id];
 
+  UserModel? getUserByEmail(String email) {
+    final clean = email.trim().toLowerCase();
+    try {
+      return _users.values.firstWhere((u) => u.email.trim().toLowerCase() == clean);
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<UserModel> getAllUsers({String? role, String? query}) {
     var list = _users.values.toList();
     if (role != null && role.isNotEmpty) {
