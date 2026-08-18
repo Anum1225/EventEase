@@ -135,8 +135,7 @@ service cloud.firestore {
     // --- 7. Feedback Collection ---
     match /feedback/{feedbackId} {
       allow read: if true;
-      // Trap 5: User must write feedback under own UID
-      allow create: if isAuthenticated() && isUserActive() && request.resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isUserActive();
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -155,8 +154,8 @@ service cloud.firestore {
     // --- 9. Contact Messages Collection ---
     match /contact_messages/{msgId} {
       allow create: if true;
-      allow read: if isAdmin();
-      allow update: if isAdmin();
+      allow read: if isAuthenticated() && (isOrganizer() || isAdmin());
+      allow update: if isAuthenticated() && (isOrganizer() || isAdmin());
       allow delete: if isAdmin();
     }
   }
