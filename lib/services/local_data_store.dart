@@ -106,8 +106,8 @@ class LocalDataStore {
     _passwords['noobgamerabduljabber@gmail.com'] = 'anumnaz';
     _passwords['admin@eventease.com'] = 'Admin123!';
 
-    // Default Seed Events — only for offline demo mode (no Firebase)
-    if (_events.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
+    // Default Discoverable Events (ready for instant Guest / Attendee exploration)
+    if (_events.isEmpty) {
       final seedEvents = [
         EventModel(
           id: 'evt_tech_summit_2026',
@@ -120,9 +120,9 @@ class LocalDataStore {
           category: 'Technology',
           maxParticipants: 500,
           registeredCount: 142,
-          organizerId: 'usr_org_arandaiman',
-          organizerName: 'Arand Aiman',
-          organizerEmail: 'arandaiman@gmail.com',
+          organizerId: 'usr_org_demo',
+          organizerName: 'Tech Innovations PK',
+          organizerEmail: 'events@techinnovations.pk',
           status: AppConstants.eventStatusApproved,
           createdAt: DateTime.now().subtract(const Duration(days: 10)),
         ),
@@ -137,9 +137,9 @@ class LocalDataStore {
           category: 'Music',
           maxParticipants: 300,
           registeredCount: 85,
-          organizerId: 'usr_org_arandaiman',
-          organizerName: 'Arand Aiman',
-          organizerEmail: 'arandaiman@gmail.com',
+          organizerId: 'usr_org_demo',
+          organizerName: 'Cultural Beats Society',
+          organizerEmail: 'arts@culturalbeats.pk',
           status: AppConstants.eventStatusApproved,
           createdAt: DateTime.now().subtract(const Duration(days: 7)),
         ),
@@ -154,9 +154,9 @@ class LocalDataStore {
           category: 'Business',
           maxParticipants: 150,
           registeredCount: 64,
-          organizerId: 'usr_org_arandaiman',
-          organizerName: 'Arand Aiman',
-          organizerEmail: 'arandaiman@gmail.com',
+          organizerId: 'usr_org_demo',
+          organizerName: 'Capital Leaders Forum',
+          organizerEmail: 'summit@capitalleaders.org',
           status: AppConstants.eventStatusApproved,
           createdAt: DateTime.now().subtract(const Duration(days: 5)),
         ),
@@ -171,10 +171,10 @@ class LocalDataStore {
           category: 'Entertainment',
           maxParticipants: 200,
           registeredCount: 0,
-          organizerId: 'usr_org_arandaiman',
-          organizerName: 'Arand Aiman',
-          organizerEmail: 'arandaiman@gmail.com',
-          status: AppConstants.eventStatusPendingApproval,
+          organizerId: 'usr_org_demo',
+          organizerName: 'Cyber Arena PK',
+          organizerEmail: 'esports@cyberarena.pk',
+          status: AppConstants.eventStatusApproved,
           createdAt: DateTime.now().subtract(const Duration(days: 1)),
         ),
       ];
@@ -184,8 +184,8 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Registrations — only for offline demo mode
-    if (_registrations.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
+    // Default Seed Registrations
+    if (_registrations.isEmpty) {
       final seedRegs = [
         RegistrationModel(
           id: 'reg_demo_001',
@@ -222,8 +222,8 @@ class LocalDataStore {
       }
     }
 
-    // Default Seed Feedback — only for offline demo mode
-    if (_feedbacks.isEmpty && !DefaultFirebaseOptions.isLiveFirebaseConfigured) {
+    // Default Seed Feedback
+    if (_feedbacks.isEmpty) {
       final seedFeedbacks = [
         FeedbackModel(
           id: 'usr_att_noobgamer_evt_tech_summit_2026',
@@ -267,16 +267,14 @@ class LocalDataStore {
       // Ensure default accounts are present
       _initializeData();
 
-      final isFirebaseLive = DefaultFirebaseOptions.isLiveFirebaseConfigured;
-
-      // 1. Passwords (always load — needed for login flow)
+      // 1. Passwords
       final passwordsJson = prefs.getString('local_passwords');
       if (passwordsJson != null) {
         final Map<String, dynamic> map = jsonDecode(passwordsJson);
         map.forEach((k, v) => _passwords[k.toLowerCase()] = v.toString());
       }
 
-      // 2. Users (always load — needed for login flow)
+      // 2. Users
       final usersJson = prefs.getString('local_users');
       if (usersJson != null) {
         final List<dynamic> list = jsonDecode(usersJson);
@@ -286,31 +284,27 @@ class LocalDataStore {
         }
       }
 
-      // 3. Events — skip when Firebase is live (syncFromFirestore will load fresh)
-      if (!isFirebaseLive) {
-        final eventsJson = prefs.getString('local_events');
-        if (eventsJson != null) {
-          final List<dynamic> list = jsonDecode(eventsJson);
-          for (final item in list) {
-            final e = EventModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _events[e.id] = e;
-          }
+      // 3. Events
+      final eventsJson = prefs.getString('local_events');
+      if (eventsJson != null) {
+        final List<dynamic> list = jsonDecode(eventsJson);
+        for (final item in list) {
+          final e = EventModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _events[e.id] = e;
         }
       }
 
-      // 4. Registrations — skip when Firebase is live
-      if (!isFirebaseLive) {
-        final regsJson = prefs.getString('local_registrations');
-        if (regsJson != null) {
-          final List<dynamic> list = jsonDecode(regsJson);
-          for (final item in list) {
-            final r = RegistrationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _registrations[r.id] = r;
-          }
+      // 4. Registrations
+      final regsJson = prefs.getString('local_registrations');
+      if (regsJson != null) {
+        final List<dynamic> list = jsonDecode(regsJson);
+        for (final item in list) {
+          final r = RegistrationModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _registrations[r.id] = r;
         }
       }
 
-      // 5. Favorites (always load — user-specific, not synced from Firestore)
+      // 5. Favorites
       final favsJson = prefs.getString('local_favorites');
       if (favsJson != null) {
         final List<dynamic> list = jsonDecode(favsJson);
@@ -320,31 +314,27 @@ class LocalDataStore {
         }
       }
 
-      // 6. Attendance — skip when Firebase is live
-      if (!isFirebaseLive) {
-        final attJson = prefs.getString('local_attendance');
-        if (attJson != null) {
-          final List<dynamic> list = jsonDecode(attJson);
-          for (final item in list) {
-            final a = AttendanceModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _attendance[a.id] = a;
-          }
+      // 6. Attendance
+      final attJson = prefs.getString('local_attendance');
+      if (attJson != null) {
+        final List<dynamic> list = jsonDecode(attJson);
+        for (final item in list) {
+          final a = AttendanceModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _attendance[a.id] = a;
         }
       }
 
-      // 7. Feedback — skip when Firebase is live
-      if (!isFirebaseLive) {
-        final fbJson = prefs.getString('local_feedback');
-        if (fbJson != null) {
-          final List<dynamic> list = jsonDecode(fbJson);
-          for (final item in list) {
-            final fb = FeedbackModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _feedbacks[fb.id] = fb;
-          }
+      // 7. Feedback
+      final fbJson = prefs.getString('local_feedback');
+      if (fbJson != null) {
+        final List<dynamic> list = jsonDecode(fbJson);
+        for (final item in list) {
+          final fb = FeedbackModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _feedbacks[fb.id] = fb;
         }
       }
 
-      // 8. Notifications (always load — user-specific)
+      // 8. Notifications
       final notifJson = prefs.getString('local_notifications');
       if (notifJson != null) {
         final List<dynamic> list = jsonDecode(notifJson);
@@ -354,27 +344,23 @@ class LocalDataStore {
         }
       }
 
-      // 9. Contact Messages — skip when Firebase is live
-      if (!isFirebaseLive) {
-        final contactsJson = prefs.getString('local_contacts');
-        if (contactsJson != null) {
-          final List<dynamic> list = jsonDecode(contactsJson);
-          for (final item in list) {
-            final c = ContactMessageModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _contacts[c.id] = c;
-          }
+      // 9. Contact Messages
+      final contactsJson = prefs.getString('local_contacts');
+      if (contactsJson != null) {
+        final List<dynamic> list = jsonDecode(contactsJson);
+        for (final item in list) {
+          final c = ContactMessageModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _contacts[c.id] = c;
         }
       }
 
-      // 10. Galleries — skip when Firebase is live
-      if (!isFirebaseLive) {
-        final galleriesJson = prefs.getString('local_galleries');
-        if (galleriesJson != null) {
-          final List<dynamic> list = jsonDecode(galleriesJson);
-          for (final item in list) {
-            final g = GalleryModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
-            _galleries[g.id] = g;
-          }
+      // 10. Galleries
+      final galleriesJson = prefs.getString('local_galleries');
+      if (galleriesJson != null) {
+        final List<dynamic> list = jsonDecode(galleriesJson);
+        for (final item in list) {
+          final g = GalleryModel.fromMap(Map<String, dynamic>.from(item as Map), item['id'] ?? '');
+          _galleries[g.id] = g;
         }
       }
     } catch (e) {
@@ -843,6 +829,11 @@ class LocalDataStore {
 
   EventModel? getEventById(String id) => _events[id];
 
+  void saveOrUpdateEvent(EventModel event) {
+    _events[event.id] = event;
+    _saveToDisk();
+  }
+
   List<EventModel> getEventsByOrganizer(String organizerId, [String? organizerEmail]) {
     final cleanEmail = organizerEmail?.trim().toLowerCase();
     final list = _events.values.where((e) {
@@ -961,21 +952,31 @@ class LocalDataStore {
     required String userName,
     required String userEmail,
     required String eventTitle,
+    String? customRegId,
+    String? customQrCode,
   }) {
-    final ev = _events[eventId];
-    if (ev != null && !ev.isApproved) throw Exception('Event is not accepting registrations.');
+    final ev = _events[eventId] ?? _events.values.where((e) => e.id == eventId).firstOrNull;
+    if (ev != null && (ev.isCompleted || ev.status == AppConstants.eventStatusCompleted || ev.hasPassedSchedule)) {
+      throw Exception('Registration is closed. This event has already finished.');
+    }
+    if (ev != null && !ev.isApproved) throw Exception('Registration is not open for this event.');
     if (ev != null && ev.isFull) throw Exception('Event has reached maximum capacity.');
+
+    final cleanEmail = userEmail.trim().toLowerCase();
+    final cleanUserId = userId.trim().toLowerCase();
 
     // Check duplicate
     final existing = _registrations.values.where(
-      (r) => r.eventId == eventId && r.userId == userId && r.isRegistered,
+      (r) => r.eventId == eventId &&
+             (r.userId.toLowerCase() == cleanUserId || (cleanEmail.isNotEmpty && r.userEmail?.toLowerCase() == cleanEmail)) &&
+             r.isRegistered,
     );
     if (existing.isNotEmpty) {
       throw Exception('You are already registered for this event.');
     }
 
-    final regId = 'reg_${_uuid.v4().substring(0, 8)}';
-    final qrToken = 'EASE-$regId-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final regId = customRegId ?? 'reg_${_uuid.v4().substring(0, 8)}';
+    final qrToken = customQrCode ?? 'EASE-$regId-${_uuid.v4().substring(0, 8).toUpperCase()}';
 
     final reg = RegistrationModel(
       id: regId,
@@ -1034,12 +1035,13 @@ class LocalDataStore {
 
   List<RegistrationModel> getUserRegistrations(String userId, [String? userEmail]) {
     final cleanEmail = userEmail?.trim().toLowerCase();
+    final cleanUserId = userId.trim().toLowerCase();
     final list = _registrations.values.where((r) {
-      if (r.userId == userId) return true;
+      if (r.userId.toLowerCase() == cleanUserId) return true;
       if (cleanEmail != null && cleanEmail.isNotEmpty && r.userEmail?.toLowerCase() == cleanEmail) {
         return true;
       }
-      if (userId.contains('@') && r.userEmail?.toLowerCase() == userId.toLowerCase()) {
+      if (cleanUserId.contains('@') && r.userEmail?.toLowerCase() == cleanUserId) {
         return true;
       }
       return false;
@@ -1048,7 +1050,17 @@ class LocalDataStore {
     return list;
   }
 
-  RegistrationModel? getRegistrationById(String id) => _registrations[id];
+  RegistrationModel? getRegistrationById(String id) {
+    if (_registrations.containsKey(id)) return _registrations[id];
+    final clean = id.trim().toLowerCase();
+    try {
+      return _registrations.values.firstWhere(
+        (r) => r.id.toLowerCase() == clean || r.qrCode.toLowerCase() == clean,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   RegistrationModel? getRegistrationByQr(String qrCode) {
     final clean = qrCode.trim().toLowerCase();

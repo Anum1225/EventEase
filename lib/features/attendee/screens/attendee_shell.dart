@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/modern_navigation_bar.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
+import '../../../providers/registration_provider.dart';
 
 class AttendeeShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -35,6 +36,10 @@ class _AttendeeShellState extends State<AttendeeShell> {
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
     );
+    final user = context.read<AuthProvider>().currentUser;
+    if (user != null && (index == 1 || index == 2)) {
+      context.read<RegistrationProvider>().loadUserData(user.id, user.email);
+    }
   }
 
   @override

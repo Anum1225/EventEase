@@ -77,17 +77,35 @@ class AuthService {
         cleanEmail == 'noobgamerabduljabber@gmail.com' ||
         cleanEmail == 'admin@eventease.com';
 
-    // 1. Pre-verify core demo accounts directly to avoid unnecessary 400 Bad Request errors
+    // 1. Pre-verify core demo accounts directly and synchronize with Firebase Auth UID
     if (isCoreDemo) {
       try {
         final localUser = _localStore.authenticateUser(email, password);
         if (localUser != null) {
           final auth = _safeAuth;
           if (auth != null && DefaultFirebaseOptions.isLiveFirebaseConfigured && !_firebaseAuthUnavailable) {
-            auth.signInWithEmailAndPassword(email: cleanEmail, password: password).catchError((_) {
-              auth.createUserWithEmailAndPassword(email: cleanEmail, password: password).catchError((_) => null as dynamic);
-              return null as dynamic;
-            });
+            try {
+              UserCredential? credential;
+              try {
+                credential = await auth.signInWithEmailAndPassword(email: cleanEmail, password: password);
+              } catch (_) {
+                try {
+                  credential = await auth.createUserWithEmailAndPassword(email: cleanEmail, password: password);
+                } catch (_) {}
+              }
+              final fbUser = credential?.user ?? auth.currentUser;
+              if (fbUser != null) {
+                final existingUser = await _userRepository.getUser(fbUser.uid);
+                if (existingUser != null) {
+                  _localStore.updateUser(existingUser);
+                  return existingUser;
+                }
+                final syncedUser = localUser.copyWith(id: fbUser.uid);
+                await _userRepository.createUser(syncedUser);
+                _localStore.updateUser(syncedUser);
+                return syncedUser;
+              }
+            } catch (_) {}
           }
           return localUser;
         }

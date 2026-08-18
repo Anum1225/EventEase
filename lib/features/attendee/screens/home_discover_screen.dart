@@ -453,8 +453,6 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
     Color secondaryTextColor,
   ) {
     final regProvider = context.watch<RegistrationProvider>();
-    final authProvider = context.watch<AuthProvider>();
-    final isFav = regProvider.isEventFavorited(event.id);
     final isRegistered = regProvider.isRegisteredForEvent(event.id);
 
     return Padding(
@@ -480,45 +478,6 @@ class _HomeDiscoverScreenState extends State<HomeDiscoverScreen> {
                   top: 12,
                   left: 12,
                   child: CategoryChip(category: event.category),
-                ),
-
-                // Favorite Heart Toggle Top Right
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        color: isFav ? const Color(0xFFFF4B6E) : Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        if (authProvider.currentUser != null) {
-                          regProvider.toggleFavorite(
-                            userId: authProvider.currentUser!.id,
-                            eventId: event.id,
-                            userEmail: authProvider.currentUser!.email,
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isFav ? 'Removed from Saved Events' : 'Saved to Favorites!',
-                              ),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        } else {
-                          context.push('/login?reason=${Uri.encodeComponent('Saved Events')}');
-                        }
-                      },
-                      tooltip: 'Save Event',
-                    ),
-                  ),
                 ),
 
                 // Registered Badge Overlay if already registered

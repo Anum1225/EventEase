@@ -97,6 +97,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
 
     if (reg != null && mounted) {
+      // Reload event capacity and attendee registrations immediately
+      await _loadEvent();
+      if (!mounted) return;
+
       // Show confirmation dialog with direct link to QR pass
       showDialog(
         context: context,
@@ -115,10 +119,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _loadEvent(); // Refresh capacity
-              },
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Dismiss'),
             ),
             ElevatedButton(
@@ -132,8 +133,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         ),
       );
     } else if (regProvider.errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+          behavior: SnackBarBehavior.floating,
           content: Text(regProvider.errorMessage!),
           backgroundColor: AppColors.lightError,
         ),
@@ -333,25 +336,43 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
+                  tooltip: isFav ? 'Remove from Saved' : 'Save to Favorites',
                   icon: Icon(
                     isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     color: isFav ? const Color(0xFFFF4B6E) : Colors.white,
+                    size: 22,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     if (authProvider.currentUser != null) {
-                      regProvider.toggleFavorite(
+                      final wasFav = isFav;
+                      await regProvider.toggleFavorite(
                         userId: authProvider.currentUser!.id,
                         eventId: event.id,
                         userEmail: authProvider.currentUser!.email,
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isFav ? 'Removed from Saved Events' : 'Saved to Favorites!',
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            content: Row(
+                              children: [
+                                Icon(
+                                  !wasFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  color: !wasFav ? const Color(0xFFFF4B6E) : Colors.white,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  !wasFav ? 'Saved to Favorites!' : 'Removed from Saved Events',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            duration: const Duration(seconds: 2),
                           ),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                        );
+                      }
                     } else {
                       context.push('/login?reason=${Uri.encodeComponent('Saved Events')}');
                     }

@@ -77,6 +77,7 @@ class RegistrationProvider with ChangeNotifier {
       _registrations = regs;
       _favoriteEventIds = favs.map((f) => f.eventId).toSet();
       _isLoading = false;
+      _errorMessage = null;
       notifyListeners();
     } catch (e) {
       _errorMessage = 'Failed to load attendee data: ${e.toString()}';
@@ -112,18 +113,22 @@ class RegistrationProvider with ChangeNotifier {
         userEmail: userEmail,
       );
 
+      _registrations.removeWhere((r) => r.id == reg.id || r.eventId == eventId);
       _registrations.insert(0, reg);
 
       // Trigger Confirmation Notification
-      await _notificationRepository.sendNotification(
-        userId: userId,
-        title: 'Registration Confirmed! 🎉',
-        message: 'You have successfully secured a spot for "$eventTitle". Your QR ticket pass is ready in My Events.',
-        type: 'registration_confirm',
-        eventId: eventId,
-      );
+      try {
+        await _notificationRepository.sendNotification(
+          userId: userId,
+          title: 'Registration Confirmed! 🎉',
+          message: 'You have successfully secured a spot for "$eventTitle". Your QR ticket pass is ready in My Events.',
+          type: 'registration_confirm',
+          eventId: eventId,
+        );
+      } catch (_) {}
 
       _isLoading = false;
+      _errorMessage = null;
       notifyListeners();
       return reg;
     } catch (e) {

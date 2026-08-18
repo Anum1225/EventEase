@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_constants.dart';
 import '../firebase_options.dart';
@@ -9,11 +10,13 @@ import '../services/local_data_store.dart';
 /// Repository managing atomic registrations and attendee event histories with dual-engine fallback
 class RegistrationRepository {
   FirebaseFirestore? _firestore;
+  FirebaseAuth? _auth;
   final LocalDataStore _localStore = LocalDataStore();
   final Uuid _uuid;
 
-  RegistrationRepository({FirebaseFirestore? firestore, Uuid? uuid})
+  RegistrationRepository({FirebaseFirestore? firestore, FirebaseAuth? auth, Uuid? uuid})
       : _firestore = firestore,
+        _auth = auth,
         _uuid = uuid ?? const Uuid();
 
   FirebaseFirestore? get _safeFirestore {
@@ -22,6 +25,19 @@ class RegistrationRepository {
       try {
         _firestore = FirebaseFirestore.instance;
         return _firestore;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  FirebaseAuth? get _safeAuth {
+    if (_auth != null) return _auth;
+    if (DefaultFirebaseOptions.isLiveFirebaseConfigured) {
+      try {
+        _auth = FirebaseAuth.instance;
+        return _auth;
       } catch (_) {
         return null;
       }
@@ -42,18 +58,41 @@ class RegistrationRepository {
     required String userName,
     required String userEmail,
   }) async {
-    // 1. Try Firebase Firestore Transaction only if live credentials configured
+    // 1. Check if event is completed / finished in local store first
+    var cachedEvent = _localStore.getEventById(eventId) ??
+        _localStore.getAllAdminEvents().where((e) => e.id == eventId).firstOrNull;
+    if (cachedEvent != null && (cachedEvent.isCompleted || cachedEvent.status == AppConstants.eventStatusCompleted || cachedEvent.hasPassedSchedule)) {
+      throw Exception('Registration is closed. This event has already finished.');
+    }
+
+    final effectiveUserId = _safeAuth?.currentUser?.uid ?? userId;
+
+    // 2. Try Firebase Firestore Transaction only if live credentials configured
     if (DefaultFirebaseOptions.isLiveFirebaseConfigured && _safeFirestore != null && _regCol != null && _eventsCol != null) {
       try {
         // Prevent duplicate registration for the same user & event
         final existingSnap = await _regCol!
             .where('eventId', isEqualTo: eventId)
-            .where('userId', isEqualTo: userId)
+            .where('userId', isEqualTo: effectiveUserId)
             .where('status', isEqualTo: AppConstants.registrationStatusRegistered)
             .limit(1)
-            .get();
+            .get()
+            .timeout(const Duration(seconds: 3));
         if (existingSnap.docs.isNotEmpty) {
           throw Exception('You are already registered for this event.');
+        }
+
+        if (userEmail.isNotEmpty) {
+          final existingSnapEmail = await _regCol!
+              .where('eventId', isEqualTo: eventId)
+              .where('userEmail', isEqualTo: userEmail)
+              .where('status', isEqualTo: AppConstants.registrationStatusRegistered)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 3));
+          if (existingSnapEmail.docs.isNotEmpty) {
+            throw Exception('You are already registered for this event.');
+          }
         }
 
         final registrationDocRef = _regCol!.doc();
@@ -61,17 +100,29 @@ class RegistrationRepository {
 
         final registration = await _safeFirestore!.runTransaction<RegistrationModel>((transaction) async {
           final eventDoc = await transaction.get(eventDocRef);
+          EventModel event;
+
           if (!eventDoc.exists || eventDoc.data() == null) {
-            throw Exception('Event does not exist.');
+            final loc = _localStore.getEventById(eventId) ??
+                _localStore.getAllAdminEvents().where((e) => e.id == eventId).firstOrNull;
+            if (loc == null) {
+              throw Exception('Event not found.');
+            }
+            event = loc;
+          } else {
+            event = EventModel.fromFirestore(eventDoc);
           }
 
-          final event = EventModel.fromFirestore(eventDoc);
+          if (event.isCompleted || event.status == AppConstants.eventStatusCompleted || event.hasPassedSchedule) {
+            throw Exception('Registration is closed. This event has already finished.');
+          }
+
           if (event.status != AppConstants.eventStatusApproved) {
             throw Exception('Registration is not open for this event (${event.status}).');
           }
 
           if (event.registeredCount >= event.maxParticipants) {
-            throw Exception('Event is currently full (Capacity: ${event.maxParticipants}).');
+            throw Exception('Event has reached maximum capacity.');
           }
 
           final qrToken = 'EASE-${_uuid.v4()}-${registrationDocRef.id.substring(0, 6)}';
@@ -79,7 +130,7 @@ class RegistrationRepository {
           final newReg = RegistrationModel(
             id: registrationDocRef.id,
             eventId: eventId,
-            userId: userId,
+            userId: effectiveUserId,
             eventTitle: event.title,
             eventDate: event.date,
             eventLocation: event.location,
@@ -93,39 +144,68 @@ class RegistrationRepository {
           );
 
           transaction.set(registrationDocRef, newReg.toMap());
-          transaction.update(eventDocRef, {
-            'registeredCount': FieldValue.increment(1),
-          });
+          if (eventDoc.exists) {
+            transaction.update(eventDocRef, {
+              'registeredCount': FieldValue.increment(1),
+            });
+          }
 
           return newReg;
-        });
+        }, timeout: const Duration(seconds: 4));
 
-        // Safely sync local cache without failing successful Firestore transaction
-        try {
-          _localStore.registerForEvent(
-            eventId: eventId,
-            userId: userId,
-            userName: userName,
-            userEmail: userEmail,
-            eventTitle: registration.eventTitle ?? 'Event',
-          );
-        } catch (_) {}
+        // Always sync local database
+        _localStore.registerForEvent(
+          eventId: eventId,
+          userId: userId,
+          userName: userName,
+          userEmail: userEmail,
+          eventTitle: registration.eventTitle ?? 'Event',
+          customRegId: registration.id,
+          customQrCode: registration.qrCode,
+        );
 
         return registration;
       } catch (e) {
         final errorMsg = e.toString().replaceAll('Exception: ', '');
         if (errorMsg.contains('already registered') ||
+            errorMsg.contains('maximum capacity') ||
             errorMsg.contains('full') ||
-            errorMsg.contains('not open') ||
-            errorMsg.contains('does not exist')) {
+            errorMsg.contains('Registration is closed') ||
+            errorMsg.contains('already finished') ||
+            errorMsg.contains('concluded') ||
+            errorMsg.contains('not open')) {
           throw Exception(errorMsg);
         }
+        // In case of network glitch or permission error on cloud, fallback to local engine
       }
     }
 
-    // 2. Local database engine fallback
-    final event = _localStore.getEventById(eventId);
-    if (event == null) throw Exception('Event does not exist.');
+    // 3. Local database engine fallback with dynamic Firestore fetching if needed
+    var event = _localStore.getEventById(eventId) ??
+        _localStore.getAllAdminEvents().where((e) => e.id == eventId).firstOrNull;
+
+    if (event == null && _eventsCol != null && DefaultFirebaseOptions.isLiveFirebaseConfigured) {
+      try {
+        final doc = await _eventsCol!.doc(eventId).get().timeout(const Duration(seconds: 2));
+        if (doc.exists && doc.data() != null) {
+          event = EventModel.fromFirestore(doc);
+          _localStore.saveOrUpdateEvent(event);
+        }
+      } catch (_) {}
+    }
+
+    if (event == null) {
+      throw Exception('Event not found.');
+    }
+    if (event.isCompleted || event.status == AppConstants.eventStatusCompleted || event.hasPassedSchedule) {
+      throw Exception('Registration is closed. This event has already finished.');
+    }
+    if (event.status != AppConstants.eventStatusApproved) {
+      throw Exception('Registration is not open for this event (${event.status}).');
+    }
+    if (event.registeredCount >= event.maxParticipants) {
+      throw Exception('Event has reached maximum capacity.');
+    }
     return _localStore.registerForEvent(
       eventId: eventId,
       userId: userId,
@@ -239,8 +319,22 @@ class RegistrationRepository {
       try {
         final snap = await _regCol!
             .where('userId', isEqualTo: userId)
-            .get();
+            .get()
+            .timeout(const Duration(seconds: 3));
         list = snap.docs.map((doc) => RegistrationModel.fromFirestore(doc)).toList();
+
+        if (userEmail != null && userEmail.trim().isNotEmpty) {
+          final snapEmail = await _regCol!
+              .where('userEmail', isEqualTo: userEmail.trim())
+              .get()
+              .timeout(const Duration(seconds: 3));
+          for (final doc in snapEmail.docs) {
+            final reg = RegistrationModel.fromFirestore(doc);
+            if (!list.any((r) => r.id == reg.id)) {
+              list.add(reg);
+            }
+          }
+        }
       } catch (_) {}
     }
     final localList = _localStore.getUserRegistrations(userId, userEmail);

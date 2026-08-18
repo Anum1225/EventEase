@@ -138,12 +138,25 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
     dynamic user,
   }) {
     if (list.isEmpty) {
-      return EmptyStateView(
-        icon: isCancelled ? Icons.event_busy_rounded : Icons.confirmation_number_outlined,
-        title: emptyTitle,
-        message: emptyMessage,
-        actionLabel: isUpcoming ? 'Discover Events' : null,
-        onAction: isUpcoming ? () => context.go('/attendee') : null,
+      return RefreshIndicator(
+        onRefresh: () async {
+          if (user != null) {
+            await context.read<RegistrationProvider>().loadUserData(user.id, user.email);
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.65,
+            child: EmptyStateView(
+              icon: isCancelled ? Icons.event_busy_rounded : Icons.confirmation_number_outlined,
+              title: emptyTitle,
+              message: emptyMessage,
+              actionLabel: isUpcoming ? 'Discover Events' : null,
+              onAction: isUpcoming ? () => context.go('/attendee') : null,
+            ),
+          ),
+        ),
       );
     }
 
@@ -151,10 +164,17 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
     final primaryTextColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (user != null) {
+          await context.read<RegistrationProvider>().loadUserData(user.id, user.email);
+        }
+      },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        itemCount: list.length,
+        itemBuilder: (context, index) {
         final reg = list[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 16.0),
@@ -305,6 +325,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> with SingleTickerProvid
           ),
         );
       },
+      ),
     );
   }
 }
